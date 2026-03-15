@@ -20,10 +20,8 @@ BookMyFlight isn't just a booking app; it's an *experience*. Featuring a stunnin
 
 ## 🎬 Live Preview
 
-> **Note:** Add your demo GIF here! Keep it around `1200px` wide and `8-20s` long for optimal GitHub rendering.
-
 <div align="center">
-  <img src="./public/live-preview.gif" alt="BookMyFlight Live Demo" width="100%" style="border-radius: 12px; box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);" />
+  <img src="./preview/BookMyFlight_short_gif.gif" alt="BookMyFlight Live Demo" width="100%" style="border-radius: 12px; box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);" />
 </div>
 
 ---

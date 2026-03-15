@@ -111,7 +111,7 @@ We didn't just build a functional app; we built a visually immersive journey:
  ┣ 📂 public/               # Static assets (fonts, images, admin.json config)
  ┗ 📂 backend/              # Spring Boot API Server
     ┗ 📂 src/main/resources/db/migration/  # Flyway SQL schemas
-
+```
 ## ⚡ Quick Start Guide
 
 ### 1. Clone & Install Frontend

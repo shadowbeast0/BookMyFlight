@@ -163,6 +163,5 @@ To unlock the Admin Control Panel in the UI, your phone number must be registere
 ---
 
 <div align="center">
-  <p>Distributed under the license found in <code>LICENSE</code>.</p>
-  <p>Built with 💻 and ☕</p>
+  <p>Distributed under the <a href="./LICENSE">MIT License</a>.</p>
 </div>

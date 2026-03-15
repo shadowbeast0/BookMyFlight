@@ -111,3 +111,58 @@ We didn't just build a functional app; we built a visually immersive journey:
  ┣ 📂 public/               # Static assets (fonts, images, admin.json config)
  ┗ 📂 backend/              # Spring Boot API Server
     ┗ 📂 src/main/resources/db/migration/  # Flyway SQL schemas
+
+## ⚡ Quick Start Guide
+
+### 1. Clone & Install Frontend
+```bash
+git clone [https://github.com/YOUR_USERNAME/BookMyFlight.git](https://github.com/YOUR_USERNAME/BookMyFlight.git)
+cd BookMyFlight
+
+# Install dependencies
+pnpm install  # or npm install
+```
+
+### 2. Configure Environment Variables
+Create a `.env.local` file in the root directory:
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8080/api
+```
+
+### 3. Launch Frontend
+```bash
+pnpm dev
+```
+> 📍 Frontend is now running at `http://localhost:3000`
+
+### 4. Launch Backend Engine
+Open a new terminal, navigate to the `backend/` directory, and run:
+```bash
+./mvnw.cmd spring-boot:run
+```
+> 📍 Backend is now running at `http://localhost:8080`
+
+---
+
+## 🔐 Admin Setup
+
+To unlock the Admin Control Panel in the UI, your phone number must be registered as an admin.
+
+1. Navigate to `public/admin.json`.
+2. Add your phone number to the array.
+3. Login via the UI using that number to access the protected `/admin` routes.
+
+---
+
+## 📝 Developer Notes
+
+* **Database:** The default Spring Boot profile uses an in-memory **H2 database** to make local testing frictionless. 
+* **Production DB:** A MySQL profile is fully configured. Just swap the active profile in your `application.properties` or environment variables.
+* **Git Ignore:** Local H2 database artifacts (stored in `backend/data`) are ignored via `.gitignore`.
+
+---
+
+<div align="center">
+  <p>Distributed under the license found in <code>LICENSE</code>.</p>
+  <p>Built with 💻 and ☕</p>
+</div>

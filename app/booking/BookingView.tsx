@@ -6,7 +6,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -23,9 +23,9 @@ import {
 
 export default function BookingPage() {
     const { isLoggedIn, phoneNumber: loggedPhone, walletBalance, refreshWallet } = useAuthContext();
-  const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const dealId = params.id as string;
+  const dealId = searchParams.get('id') ?? '';
 
   const [deal, setDeal] = useState<FlightDeal | null>(null);
   const [loading, setLoading] = useState(true);

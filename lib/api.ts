@@ -3,7 +3,11 @@
  * Centralizes all backend API calls for deals, bookings, and authentication
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
+import { LocalApiError, localRequest } from '@/lib/localBackend';
+
+const REMOTE = process.env.NEXT_PUBLIC_API_URL || '';
+const API_BASE = REMOTE || '/api';
+export const isLocalMode = process.env.NEXT_PUBLIC_LOCAL_MODE === 'true';
 const TOKEN_KEY = 'bmf_token';
 
 // Admin endpoints use ?all=true to include inactive/expired deals
@@ -76,6 +80,15 @@ class APIClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
+    if (isLocalMode) {
+      try {
+        const body = typeof options.body === 'string' ? JSON.parse(options.body) : undefined;
+        return (await localRequest(options.method ?? 'GET', endpoint, body, this.token)) as T;
+      } catch (error) {
+        if (error instanceof LocalApiError && error.status === 401) this.clearToken();
+        throw error instanceof Error ? new Error(error.message) : error;
+      }
+    }
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string> | undefined),

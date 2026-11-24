@@ -24,19 +24,19 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: '/icon-light-32x32.png',
+        url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/icon-light-32x32.png`,
         media: '(prefers-color-scheme: light)',
       },
       {
-        url: '/icon-dark-32x32.png',
+        url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/icon-dark-32x32.png`,
         media: '(prefers-color-scheme: dark)',
       },
       {
-        url: '/icon.svg',
+        url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/icon.svg`,
         type: 'image/svg+xml',
       },
     ],
-    apple: '/apple-icon.png',
+    apple: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/apple-icon.png`,
   },
 }
 

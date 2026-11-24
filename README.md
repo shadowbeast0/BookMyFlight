@@ -18,6 +18,14 @@ BookMyFlight isn't just a booking app; it's an *experience*. Featuring a stunnin
 
 ---
 
+## 🌐 Live Demo
+
+**https://shadowbeast0.github.io/BookMyFlight/**
+
+The hosted demo runs fully in your browser: deals, bookings and your wallet are stored on your device, and the sign-in code is shown on screen instead of being sent by SMS. Sign in with **+919876543210** to open the admin panel.
+
+---
+
 ## 🎬 Live Preview
 
 <div align="center">

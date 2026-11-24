@@ -222,7 +222,7 @@ export default function SearchPage() {
                             </div>
                           </div>
                           <Button
-                            onClick={() => router.push(`/booking/${deal.id}`)}
+                            onClick={() => router.push(`/booking?id=${deal.id}`)}
                             className="bg-violet-500 hover:bg-violet-400 text-white font-semibold px-6"
                           >
                             Book Now
@@ -309,7 +309,7 @@ export default function SearchPage() {
                                   <span className="text-[10px] text-purple-100/65">Total for both legs</span>
                               </div>
                               <Button
-                                onClick={() => router.push(`/booking/${pair[0].id}`)}
+                                onClick={() => router.push(`/booking?id=${pair[0].id}`)}
                                 variant="outline"
                                 className="border-purple-400/50 text-purple-200 hover:bg-purple-400/15 font-semibold"
                               >

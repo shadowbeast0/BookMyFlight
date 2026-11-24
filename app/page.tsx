@@ -23,7 +23,7 @@ export default function Home() {
   const [launchSearch, setLaunchSearch] = useState(false);
 
   const handleSelectDeal = (dealId: string) => {
-    router.push(`/booking/${dealId}`);
+    router.push(`/booking?id=${dealId}`);
   };
 
   // Keep only discounted flights on homepage.
@@ -84,7 +84,7 @@ export default function Home() {
     if (bookingDealId) return;
     setBookingDealId(dealId);
     window.setTimeout(() => {
-      router.push(`/booking/${dealId}`);
+      router.push(`/booking?id=${dealId}`);
     }, 180);
   };
 

@@ -5,14 +5,14 @@
 
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
 export default function BookingConfirmationPage() {
-  const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const bookingId = params.id as string;
+  const bookingId = searchParams.get('id') ?? '';
 
   return (
     <main className="min-h-screen cyber-bg text-white py-12">

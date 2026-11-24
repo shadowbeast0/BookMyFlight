@@ -2,6 +2,7 @@ package com.bookmyflight.controller;
 
 import com.bookmyflight.dto.BookingRequest;
 import com.bookmyflight.dto.BookingResponse;
+import com.bookmyflight.security.CurrentUser;
 import com.bookmyflight.service.BookingFacadeService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +34,7 @@ public class BookingController {
     @PostMapping
     public ResponseEntity<BookingResponse> createBooking(@Valid @RequestBody BookingRequest request) {
         BookingResponse booking = facadeService.createBooking(
-                request.getDealId(), request.getPhoneNumber(),
+                request.getDealId(), CurrentUser.phone(),
             request.getPassengerName(), request.getSelectedDepartureTime(), request.getSelectedSeats(), request.getPassengerCount());
         return ResponseEntity.status(HttpStatus.CREATED).body(booking);
     }
@@ -43,7 +44,9 @@ public class BookingController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<BookingResponse> getBooking(@PathVariable String id) {
-        return ResponseEntity.ok(facadeService.getBookingById(id));
+        BookingResponse booking = facadeService.getBookingById(id);
+        CurrentUser.requireSelfOrAdmin(booking.getPhoneNumber());
+        return ResponseEntity.ok(booking);
     }
 
     /**
@@ -51,8 +54,10 @@ public class BookingController {
      */
     @GetMapping
     public ResponseEntity<List<BookingResponse>> getUserBookings(
-            @RequestParam("phone") String phoneNumber) {
-        return ResponseEntity.ok(facadeService.getBookingsByPhone(phoneNumber));
+            @RequestParam(value = "phone", required = false) String phoneNumber) {
+        String phone = phoneNumber == null || phoneNumber.isBlank() ? CurrentUser.phone() : phoneNumber;
+        CurrentUser.requireSelfOrAdmin(phone);
+        return ResponseEntity.ok(facadeService.getBookingsByPhone(phone));
     }
 
     /**
@@ -70,6 +75,7 @@ public class BookingController {
      */
     @PutMapping("/{id}/cancel")
     public ResponseEntity<BookingResponse> cancelBooking(@PathVariable String id) {
+        CurrentUser.requireSelfOrAdmin(facadeService.getBookingById(id).getPhoneNumber());
         return ResponseEntity.ok(facadeService.cancelBooking(id));
     }
 }

@@ -8,7 +8,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * OTP Service - Handles OTP generation and verification.
@@ -27,6 +32,29 @@ public class OtpService {
     @Value("${app.otp.length:6}")
     private int otpLength;
 
+    @Value("${app.otp.demo-mode:true}")
+    private boolean demoMode;
+
+    private static final int MAX_CODES_PER_WINDOW = 5;
+    private static final long WINDOW_SECONDS = 600;
+    private final Map<String, Deque<Instant>> recentRequests = new ConcurrentHashMap<>();
+
+    public boolean isDemoMode() {
+        return demoMode;
+    }
+
+    private void checkRateLimit(String phoneNumber) {
+        Deque<Instant> times = recentRequests.computeIfAbsent(phoneNumber, key -> new ArrayDeque<>());
+        synchronized (times) {
+            Instant cutoff = Instant.now().minusSeconds(WINDOW_SECONDS);
+            while (!times.isEmpty() && times.peekFirst().isBefore(cutoff)) times.pollFirst();
+            if (times.size() >= MAX_CODES_PER_WINDOW) {
+                throw new RuntimeException("Too many codes requested for this number. Try again in a few minutes.");
+            }
+            times.addLast(Instant.now());
+        }
+    }
+
     @Autowired
     public OtpService(OtpTokenRepository otpRepository) {
         this.otpRepository = otpRepository;
@@ -38,6 +66,7 @@ public class OtpService {
      */
     @Transactional
     public String generateOtp(String phoneNumber) {
+        checkRateLimit(phoneNumber);
         // Generate a secure random OTP
         int max = (int) Math.pow(10, otpLength);
         int min = (int) Math.pow(10, otpLength - 1);
@@ -48,11 +77,9 @@ public class OtpService {
         OtpToken otpToken = new OtpToken(phoneNumber, otp, expiresAt);
         otpRepository.save(otpToken);
 
-        // In production, send SMS here. For demo, log the OTP.
-        System.out.println("========================================");
-        System.out.println("  OTP for " + phoneNumber + ": " + otp);
-        System.out.println("  (Expires in " + otpExpirationSeconds + " seconds)");
-        System.out.println("========================================");
+        if (!demoMode) {
+            System.out.println("OTP issued for " + phoneNumber.replaceAll(".(?=.{4})", "*"));
+        }
 
         return otp;
     }

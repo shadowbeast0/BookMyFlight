@@ -2,23 +2,18 @@ package com.bookmyflight.controller;
 
 import com.bookmyflight.dto.WalletResponse;
 import com.bookmyflight.dto.WalletTopUpRequest;
+import com.bookmyflight.security.CurrentUser;
 import com.bookmyflight.service.WalletService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-/**
- * Wallet Controller - get wallet and add balance from bank.
- */
 @RestController
 @RequestMapping("/api/wallet")
 public class WalletController {
+
+    private static final double MAX_TOP_UP = 200_000;
 
     private final WalletService walletService;
 
@@ -28,12 +23,17 @@ public class WalletController {
     }
 
     @GetMapping
-    public ResponseEntity<WalletResponse> getWallet(@RequestParam("phone") String phoneNumber) {
-        return ResponseEntity.ok(walletService.getWallet(phoneNumber));
+    public ResponseEntity<WalletResponse> getWallet(@RequestParam(value = "phone", required = false) String phoneNumber) {
+        String phone = phoneNumber == null || phoneNumber.isBlank() ? CurrentUser.phone() : phoneNumber;
+        CurrentUser.requireSelfOrAdmin(phone);
+        return ResponseEntity.ok(walletService.getWallet(phone));
     }
 
     @PostMapping("/top-up")
     public ResponseEntity<WalletResponse> topUp(@Valid @RequestBody WalletTopUpRequest request) {
-        return ResponseEntity.ok(walletService.topUp(request.getPhoneNumber(), request.getAmount()));
+        if (request.getAmount() > MAX_TOP_UP) {
+            throw new RuntimeException("You can add at most Rs 2,00,000 at a time");
+        }
+        return ResponseEntity.ok(walletService.topUp(CurrentUser.phone(), request.getAmount()));
     }
 }

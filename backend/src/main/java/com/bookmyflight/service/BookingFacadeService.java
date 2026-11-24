@@ -65,6 +65,13 @@ public class BookingFacadeService {
         this.discountStrategyContext = discountStrategyContext;
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.bookmyflight.config.AdminProperties adminProperties;
+
+    public boolean isOtpDemoMode() {
+        return otpService.isDemoMode();
+    }
+
     // ====== Authentication Facade ======
 
     /**
@@ -85,7 +92,7 @@ public class BookingFacadeService {
             throw new RuntimeException("Invalid or expired OTP");
         }
 
-        String token = jwtService.generateToken(phoneNumber);
+        String token = jwtService.generateToken(phoneNumber, adminProperties.isAdmin(phoneNumber));
         LocalDateTime expiry = jwtService.getTokenExpiration();
 
         return new AuthTokenResponse(token, expiry.toString());

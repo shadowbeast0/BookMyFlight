@@ -2,6 +2,7 @@ package com.bookmyflight.controller;
 
 import com.bookmyflight.dto.DealRequest;
 import com.bookmyflight.dto.DealResponse;
+import com.bookmyflight.security.CurrentUser;
 import com.bookmyflight.service.FlightDealService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +34,7 @@ public class DealController {
     @GetMapping
     public ResponseEntity<List<DealResponse>> getDeals(
             @RequestParam(value = "all", required = false) Boolean all) {
-        if (Boolean.TRUE.equals(all)) {
+        if (Boolean.TRUE.equals(all) && CurrentUser.isAdmin()) {
             return ResponseEntity.ok(dealService.getAllDeals());
         }
         return ResponseEntity.ok(dealService.getActiveDeals());

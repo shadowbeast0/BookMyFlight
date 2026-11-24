@@ -17,24 +17,60 @@ import { FlightMascot } from '@/components/FlightMascot';
 
 export function Navbar() {
   const pathname = usePathname();
-  const { isLoggedIn, phoneNumber, isAdmin, walletBalance, login, logout, topUpWallet } = useAuthContext();
+  const { isLoggedIn, phoneNumber, isAdmin, walletBalance, requestCode, verifyCode, logout, topUpWallet } = useAuthContext();
   const [showLogin, setShowLogin] = useState(false);
   const [showWalletDialog, setShowWalletDialog] = useState(false);
   const [phoneInput, setPhoneInput] = useState('');
+  const [codeInput, setCodeInput] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [demoCode, setDemoCode] = useState<string | undefined>();
+  const [authBusy, setAuthBusy] = useState(false);
   const [phoneError, setPhoneError] = useState('');
   const [topUpAmount, setTopUpAmount] = useState('');
   const [topUpLoading, setTopUpLoading] = useState(false);
   const [topUpError, setTopUpError] = useState('');
 
-  const handleLogin = () => {
+  const resetLogin = () => {
+    setCodeSent(false);
+    setCodeInput('');
+    setDemoCode(undefined);
+    setPhoneError('');
+  };
+
+  const handleSendCode = async () => {
     if (!phoneInput.match(/^\+91\d{10}$/)) {
       setPhoneError('Enter a valid Indian phone number (e.g. +919876543210)');
       return;
     }
-    login(phoneInput);
-    setShowLogin(false);
-    setPhoneInput('');
-    setPhoneError('');
+    try {
+      setAuthBusy(true);
+      setPhoneError('');
+      setDemoCode(await requestCode(phoneInput));
+      setCodeSent(true);
+    } catch (err) {
+      setPhoneError(err instanceof Error ? err.message : 'Could not send the code');
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!codeInput.match(/^\d{6}$/)) {
+      setPhoneError('Enter the 6-digit code');
+      return;
+    }
+    try {
+      setAuthBusy(true);
+      setPhoneError('');
+      await verifyCode(phoneInput, codeInput);
+      setShowLogin(false);
+      setPhoneInput('');
+      resetLogin();
+    } catch (err) {
+      setPhoneError(err instanceof Error ? err.message : 'That code did not work');
+    } finally {
+      setAuthBusy(false);
+    }
   };
 
   const handleTopUp = async () => {
@@ -173,36 +209,65 @@ export function Navbar() {
       </header>
 
       {/* Login Dialog */}
-      <Dialog open={showLogin} onOpenChange={setShowLogin}>
+      <Dialog open={showLogin} onOpenChange={(open) => { setShowLogin(open); if (!open) resetLogin(); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl">Welcome to Book My Flight</DialogTitle>
             <DialogDescription>
-              Enter your Indian phone number to continue
+              {codeSent ? `Enter the 6-digit code sent to ${phoneInput}` : 'Enter your Indian phone number to get a sign-in code'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <div>
-              <label htmlFor="login-phone" className="block text-sm font-medium mb-2">
-                Phone Number
-              </label>
-              <Input
-                id="login-phone"
-                type="tel"
-                placeholder="+919876543210"
-                value={phoneInput}
-                onChange={(e) => {
-                  setPhoneInput(e.target.value);
-                  setPhoneError('');
-                }}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-              />
-              {phoneError && (
-                <p className="text-xs text-destructive mt-2">{phoneError}</p>
-              )}
-            </div>
-            <Button onClick={handleLogin} className="w-full font-semibold">
-              Continue
+            {!codeSent ? (
+              <div>
+                <label htmlFor="login-phone" className="block text-sm font-medium mb-2">
+                  Phone Number
+                </label>
+                <Input
+                  id="login-phone"
+                  type="tel"
+                  placeholder="+919876543210"
+                  value={phoneInput}
+                  onChange={(e) => {
+                    setPhoneInput(e.target.value);
+                    setPhoneError('');
+                  }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendCode()}
+                />
+              </div>
+            ) : (
+              <div>
+                {demoCode && (
+                  <p className="mb-3 rounded-lg border border-amber-300/40 bg-amber-300/10 p-3 text-sm">
+                    Demo mode (no SMS is sent): your code is <strong className="font-mono tracking-widest">{demoCode}</strong>
+                  </p>
+                )}
+                <label htmlFor="login-code" className="block text-sm font-medium mb-2">
+                  Sign-in code
+                </label>
+                <Input
+                  id="login-code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  placeholder="123456"
+                  value={codeInput}
+                  onChange={(e) => {
+                    setCodeInput(e.target.value.replace(/\D/g, ''));
+                    setPhoneError('');
+                  }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleVerifyCode()}
+                />
+                <button type="button" className="mt-2 text-xs underline opacity-80" onClick={resetLogin}>
+                  Use a different number
+                </button>
+              </div>
+            )}
+            {phoneError && (
+              <p className="text-xs text-destructive">{phoneError}</p>
+            )}
+            <Button onClick={codeSent ? handleVerifyCode : handleSendCode} disabled={authBusy} className="w-full font-semibold">
+              {authBusy ? 'Please wait…' : codeSent ? 'Verify and sign in' : 'Send code'}
             </Button>
           </div>
         </DialogContent>

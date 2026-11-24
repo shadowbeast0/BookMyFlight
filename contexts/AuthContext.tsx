@@ -10,7 +10,8 @@ interface AuthState {
   walletBalance: number;
   refreshWallet: () => Promise<void>;
   topUpWallet: (amount: number) => Promise<void>;
-  login: (phone: string) => void;
+  requestCode: (phone: string) => Promise<string | undefined>;
+  verifyCode: (phone: string, code: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -21,44 +22,32 @@ const AuthContext = createContext<AuthState>({
   walletBalance: 0,
   refreshWallet: async () => {},
   topUpWallet: async () => {},
-  login: () => {},
+  requestCode: async () => undefined,
+  verifyCode: async () => {},
   logout: () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [phoneNumber, setPhoneNumber] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [adminPhones, setAdminPhones] = useState<string[]>([]);
   const [walletBalance, setWalletBalance] = useState(0);
 
-  const getWalletStorageKey = useCallback((phone: string) => `bmf_wallet_${phone}`, []);
-
-  // Load admin phone list
-  useEffect(() => {
-    fetch('/admin.json')
-      .then((res) => res.json())
-      .then((data) => setAdminPhones(data.adminPhones || []))
-      .catch(() => setAdminPhones([]));
+  const clearSession = useCallback(() => {
+    apiClient.clearToken();
+    setPhoneNumber(null);
+    setIsAdmin(false);
+    setWalletBalance(0);
   }, []);
 
-  // Restore session from localStorage
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('bmf_phone');
-      if (stored) {
-        setPhoneNumber(stored);
-      }
-    }
-  }, []);
-
-  // Check admin status when phone or adminPhones change
-  useEffect(() => {
-    if (phoneNumber && adminPhones.length > 0) {
-      setIsAdmin(adminPhones.includes(phoneNumber));
-    } else {
-      setIsAdmin(false);
-    }
-  }, [phoneNumber, adminPhones]);
+    if (!apiClient.getToken()) return;
+    apiClient.me()
+      .then((me) => {
+        setPhoneNumber(me.phoneNumber);
+        setIsAdmin(me.admin);
+      })
+      .catch(clearSession);
+  }, [clearSession]);
 
   const refreshWallet = useCallback(async () => {
     if (!phoneNumber) {
@@ -66,49 +55,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      const wallet = await apiClient.getWallet(phoneNumber);
-      const balance = wallet.balance || 0;
-      setWalletBalance(balance);
-      localStorage.setItem(getWalletStorageKey(phoneNumber), String(balance));
+      const wallet = await apiClient.getWallet();
+      setWalletBalance(wallet.balance || 0);
     } catch {
-      const stored = localStorage.getItem(getWalletStorageKey(phoneNumber));
-      setWalletBalance(stored ? Number(stored) : 0);
+      // Keep the last known balance; never invent one locally.
     }
-  }, [phoneNumber, getWalletStorageKey]);
+  }, [phoneNumber]);
 
   useEffect(() => {
     refreshWallet();
   }, [refreshWallet]);
 
-  const login = useCallback((phone: string) => {
-    setPhoneNumber(phone);
-    localStorage.setItem('bmf_phone', phone);
-    const storedWallet = localStorage.getItem(getWalletStorageKey(phone));
-    setWalletBalance(storedWallet ? Number(storedWallet) : 0);
-  }, [getWalletStorageKey]);
+  const requestCode = useCallback(async (phone: string) => {
+    const result = await apiClient.sendOTP(phone);
+    return result.demoOtp;
+  }, []);
+
+  const verifyCode = useCallback(async (phone: string, code: string) => {
+    await apiClient.verifyOTP(phone, code);
+    const me = await apiClient.me();
+    setPhoneNumber(me.phoneNumber);
+    setIsAdmin(me.admin);
+  }, []);
 
   const topUpWallet = useCallback(async (amount: number) => {
-    if (!phoneNumber) {
-      throw new Error('Please login first');
-    }
-    try {
-      const wallet = await apiClient.topUpWallet(phoneNumber, amount);
-      const balance = wallet.balance || 0;
-      setWalletBalance(balance);
-      localStorage.setItem(getWalletStorageKey(phoneNumber), String(balance));
-    } catch {
-      const next = walletBalance + amount;
-      setWalletBalance(next);
-      localStorage.setItem(getWalletStorageKey(phoneNumber), String(next));
-    }
-  }, [phoneNumber, walletBalance, getWalletStorageKey]);
-
-  const logout = useCallback(() => {
-    setPhoneNumber(null);
-    setIsAdmin(false);
-    setWalletBalance(0);
-    localStorage.removeItem('bmf_phone');
-  }, []);
+    if (!phoneNumber) throw new Error('Please sign in first');
+    const wallet = await apiClient.topUpWallet(amount);
+    setWalletBalance(wallet.balance || 0);
+  }, [phoneNumber]);
 
   return (
     <AuthContext.Provider
@@ -119,8 +93,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         walletBalance,
         refreshWallet,
         topUpWallet,
-        login,
-        logout,
+        requestCode,
+        verifyCode,
+        logout: clearSession,
       }}
     >
       {children}

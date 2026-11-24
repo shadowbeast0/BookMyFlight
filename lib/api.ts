@@ -3,7 +3,8 @@
  * Centralizes all backend API calls for deals, bookings, and authentication
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
+const TOKEN_KEY = 'bmf_token';
 
 // Admin endpoints use ?all=true to include inactive/expired deals
 const ADMIN_DEALS_SUFFIX = '?all=true';
@@ -54,10 +55,17 @@ export interface AuthToken {
 }
 
 class APIClient {
-  private token: string | null = null;
+  private token: string | null = typeof window !== 'undefined' ? window.localStorage.getItem(TOKEN_KEY) : null;
 
   setToken(token: string) {
-    this.token = token;
+    this.token = token || null;
+    if (typeof window === 'undefined') return;
+    if (this.token) window.localStorage.setItem(TOKEN_KEY, this.token);
+    else window.localStorage.removeItem(TOKEN_KEY);
+  }
+
+  clearToken() {
+    this.setToken('');
   }
 
   getToken() {
@@ -68,9 +76,9 @@ class APIClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string> | undefined),
     };
 
     if (this.token) {
@@ -84,7 +92,9 @@ class APIClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || `API Error: ${response.status}`);
+      if (response.status === 401) this.clearToken();
+      const message = error.error || error.message || (response.status === 401 ? 'Please sign in again' : response.status === 403 ? 'You do not have permission to do that' : `API Error: ${response.status}`);
+      throw new Error(message);
     }
 
     // Handle 204 No Content (e.g., DELETE responses)
@@ -129,7 +139,7 @@ class APIClient {
   }
 
   // ===== Authentication API =====
-  async sendOTP(phoneNumber: string): Promise<{ message: string }> {
+  async sendOTP(phoneNumber: string): Promise<{ message: string; demoOtp?: string }> {
     return this.request('/auth/send-otp', {
       method: 'POST',
       body: JSON.stringify({ phoneNumber }),
@@ -145,6 +155,10 @@ class APIClient {
       this.setToken(result.token);
     }
     return result;
+  }
+
+  async me(): Promise<{ phoneNumber: string; admin: boolean }> {
+    return this.request('/auth/me');
   }
 
   // ===== Bookings API =====
@@ -166,8 +180,8 @@ class APIClient {
     return this.request<Booking>(`/bookings/${id}`);
   }
 
-  async getUserBookings(phoneNumber: string): Promise<Booking[]> {
-    return this.request<Booking[]>(`/bookings?phone=${encodeURIComponent(phoneNumber)}`);
+  async getUserBookings(phoneNumber?: string): Promise<Booking[]> {
+    return this.request<Booking[]>(phoneNumber ? `/bookings?phone=${encodeURIComponent(phoneNumber)}` : '/bookings');
   }
 
   async getOccupiedSeats(dealId: string, departureTime?: string): Promise<string[]> {
@@ -199,14 +213,14 @@ class APIClient {
   }
 
   // ===== Wallet API =====
-  async getWallet(phoneNumber: string): Promise<Wallet> {
-    return this.request<Wallet>(`/wallet?phone=${encodeURIComponent(phoneNumber)}`);
+  async getWallet(): Promise<Wallet> {
+    return this.request<Wallet>('/wallet');
   }
 
-  async topUpWallet(phoneNumber: string, amount: number): Promise<Wallet> {
+  async topUpWallet(amount: number): Promise<Wallet> {
     return this.request<Wallet>('/wallet/top-up', {
       method: 'POST',
-      body: JSON.stringify({ phoneNumber, amount }),
+      body: JSON.stringify({ amount }),
     });
   }
 }

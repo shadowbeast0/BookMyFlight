@@ -9,7 +9,6 @@ import jakarta.validation.constraints.Positive;
  */
 public class WalletTopUpRequest {
 
-    @NotBlank(message = "Phone number is required")
     private String phoneNumber;
 
     @NotNull(message = "Amount is required")

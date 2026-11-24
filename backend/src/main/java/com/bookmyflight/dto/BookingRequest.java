@@ -13,7 +13,6 @@ public class BookingRequest {
     @NotBlank(message = "Deal ID is required")
     private String dealId;
 
-    @NotBlank(message = "Phone number is required")
     private String phoneNumber;
 
     private String passengerName;

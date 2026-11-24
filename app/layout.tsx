@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import { Space_Grotesk, Orbitron, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { Navbar } from '@/components/Navbar'
 import './globals.css'
@@ -52,7 +51,6 @@ export default function RootLayout({
           <Navbar />
           {children}
         </AuthProvider>
-        <Analytics />
       </body>
     </html>
   )

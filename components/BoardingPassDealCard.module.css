@@ -1,0 +1,122 @@
+.card {
+  position: relative;
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(124, 58, 237, 0.14), transparent 55%),
+    rgba(14, 11, 32, 0.6);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: border-color 0.3s ease, transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.card:hover {
+  border-color: rgba(255, 180, 94, 0.4);
+  transform: translateY(-3px);
+}
+
+.route {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.route p {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.route p:last-child {
+  text-align: right;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #ffb45e;
+}
+
+.line i {
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.14);
+}
+
+.price {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: #ffd29b;
+  font-variant-numeric: tabular-nums;
+}
+
+.was {
+  display: flex;
+  gap: 8px;
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.was b {
+  color: #ffb45e;
+  font-weight: 600;
+}
+
+.book {
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 180, 94, 0.55);
+  background: transparent;
+  color: #ffd29b;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.card:hover .book,
+.book:focus-visible {
+  background: #ffb45e;
+  color: #1a0e05;
+}
+
+.book:focus-visible {
+  outline: 2px solid #ffb45e;
+  outline-offset: 3px;
+}
+
+.book:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

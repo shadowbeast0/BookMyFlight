@@ -58,14 +58,15 @@ export function DealCountdown({ expiresAt, compact = false }: DealCountdownProps
     return (
       <div className="flex items-center gap-2">
         <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
-        <span className="text-sm font-medium text-destructive">Deal Expired</span>
+        <span className="text-sm font-medium text-destructive">Fare expired</span>
       </div>
     );
   }
 
   if (compact) {
     return (
-      <span className="text-xs font-mono text-amber-600 font-semibold">
+      <span className="text-xs tabular-nums text-white/55">
+        Ends in{' '}
         {timeLeft.days > 0 ? `${timeLeft.days}d ` : ''}
         {String(timeLeft.hours).padStart(2, '0')}:{String(timeLeft.minutes).padStart(2, '0')}:{String(timeLeft.seconds).padStart(2, '0')}
       </span>
@@ -73,17 +74,12 @@ export function DealCountdown({ expiresAt, compact = false }: DealCountdownProps
   }
 
   return (
-    <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-xs text-amber-700 font-medium mb-1 uppercase tracking-wide">Expires in</p>
-          <div className="text-2xl font-bold font-mono text-amber-900">
-            {timeLeft.days > 0 ? `${timeLeft.days}d ` : ''}
-            {String(timeLeft.hours).padStart(2, '0')}:{String(timeLeft.minutes).padStart(2, '0')}:{String(timeLeft.seconds).padStart(2, '0')}
-          </div>
-        </div>
-        <div className="h-8 w-1 bg-gradient-to-b from-amber-400 to-amber-200 rounded-full" />
-      </div>
+    <div className="flex items-baseline justify-between gap-4">
+      <span className="text-sm text-white/55">Fare ends in</span>
+      <span className="text-lg font-semibold tabular-nums text-[#ffd29b]">
+        {timeLeft.days > 0 ? `${timeLeft.days}d ` : ''}
+        {String(timeLeft.hours).padStart(2, '0')}:{String(timeLeft.minutes).padStart(2, '0')}:{String(timeLeft.seconds).padStart(2, '0')}
+      </span>
     </div>
   );
 }

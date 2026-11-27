@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { DealCountdown } from '@/components/DealCountdown';
 import { apiClient, FlightDeal } from '@/lib/api';
-import { FlightMascot } from '@/components/FlightMascot';
+import { PageHead } from '@/components/PageHead';
+import { ArrowLeftRight, Plane } from 'lucide-react';
 
 export default function SearchPage() {
   const router = useRouter();
@@ -68,291 +67,172 @@ export default function SearchPage() {
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
+  const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+  const day = (d?: string) => (d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : null);
+
   return (
     <main className="min-h-screen cyber-bg text-white">
-      {/* Hero */}
-      <section className="relative overflow-hidden py-16 cyber-grid">
-        <div className="relative max-w-4xl mx-auto px-4 text-center">
-          <div className="flex justify-center mb-4 animate-fade-in-up">
-            <FlightMascot size="md" />
-          </div>
-          <h1 className="display-font neon-title text-4xl md:text-5xl font-extrabold text-white mb-3 animate-fade-in-up">
-            Search Flights
-          </h1>
-          <p className="text-lg text-white/70 mb-10 animate-fade-in-up animation-delay-100">
-            Find direct and connecting flights across India
-          </p>
+      <section className="max-w-6xl mx-auto px-4 md:px-6 pt-16 md:pt-24 pb-10">
+        <PageHead kicker="Search" top="Where to" bottom="next?" sub="Direct flights and one-stop routes across India, with live discounted fares." />
 
-          {/* Search Form */}
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 md:p-8 border border-purple-300/25 shadow-2xl animate-fade-in-up animation-delay-200">
-            <div className="grid md:grid-cols-[1fr_auto_1fr_auto] gap-4 items-end">
-              <div className="text-left">
-                <label className="block text-xs font-semibold text-white/80 uppercase tracking-wider mb-2">
-                  From
-                </label>
-                <select
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                  className="w-full rounded-xl bg-white/15 border border-white/20 text-white placeholder-white/40 px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-white/40 backdrop-blur-sm"
-                >
-                  <option value="" className="text-gray-800">
-                    Select city
-                  </option>
-                  {cities.map((c) => (
-                    <option key={c} value={c} className="text-gray-800">
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Swap Button */}
-              <button
-                onClick={() => { setFrom(to); setTo(from); }}
-                className="hidden md:flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all mb-0.5 cursor-pointer"
-                title="Swap cities"
-              >
-                ⇆
-              </button>
-
-              <div className="text-left">
-                <label className="block text-xs font-semibold text-white/80 uppercase tracking-wider mb-2">
-                  To
-                </label>
-                <select
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                  className="w-full rounded-xl bg-white/15 border border-white/20 text-white placeholder-white/40 px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-white/40 backdrop-blur-sm"
-                >
-                  <option value="" className="text-gray-800">
-                    Select city
-                  </option>
-                  {cities
-                    .filter((c) => c !== from)
-                    .map((c) => (
-                      <option key={c} value={c} className="text-gray-800">
-                        {c}
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              <Button
-                onClick={handleSearch}
-                disabled={!from || !to || loading || from === to}
-                className="bg-violet-500 hover:bg-violet-400 text-white font-bold px-8 py-3 rounded-xl shadow-lg shadow-violet-500/40 disabled:opacity-50"
-              >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Searching
-                  </span>
-                ) : (
-                  'Search'
-                )}
-              </Button>
-            </div>
+        <div className="bmf-panel p-4 md:p-5">
+          <div className="grid md:grid-cols-[1fr_auto_1fr_auto] gap-3 items-end">
+            <label className="block">
+              <span className="bmf-label">From</span>
+              <select value={from} onChange={(e) => setFrom(e.target.value)} className="bmf-field" name="from">
+                <option value="">Choose a city…</option>
+                {cities.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => { setFrom(to); setTo(from); }}
+              className="hidden md:grid place-items-center w-11 h-11 mb-0.5 rounded-full border border-white/15 bg-white/[0.04] hover:bg-white/10 transition-colors"
+              aria-label="Swap cities"
+            >
+              <ArrowLeftRight size={16} />
+            </button>
+            <label className="block">
+              <span className="bmf-label">To</span>
+              <select value={to} onChange={(e) => setTo(e.target.value)} className="bmf-field" name="to">
+                <option value="">Choose a city…</option>
+                {cities.filter((c) => c !== from).map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </label>
+            <button type="button" onClick={handleSearch} disabled={!from || !to || loading || from === to} className="bmf-cta">
+              {loading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-black/20 border-t-black/70 rounded-full animate-spin" />
+                  Searching
+                </>
+              ) : (
+                'Search flights'
+              )}
+            </button>
           </div>
         </div>
       </section>
 
-      {/* Results */}
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        {citiesLoading && (
-          <div className="text-center text-muted-foreground py-12">Loading cities...</div>
-        )}
+      <div className="max-w-6xl mx-auto px-4 md:px-6 pb-24">
+        {citiesLoading && <p className="text-white/50 py-12">Loading cities…</p>}
 
         {searched && (
-          <div className="space-y-10 animate-fade-in-up">
-            {/* Direct Flights */}
-            <section>
-              <h2 className="text-2xl display-font font-bold text-purple-100 mb-6 flex items-center gap-3">
-                <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary text-sm font-bold">✈</span>
-                Direct Flights
-                <span className="text-sm font-normal text-purple-100/70">
-                  ({directFlights.length} found)
-                </span>
-              </h2>
+          <div className="space-y-14 animate-fade-in-up">
+            <section aria-labelledby="direct-title">
+              <div className="flex items-baseline justify-between gap-4 mb-5 border-b border-white/10 pb-3">
+                <h2 id="direct-title" className="text-2xl md:text-3xl font-bold tracking-[-0.03em]">Direct flights</h2>
+                <span className="bmf-section-label">{directFlights.length} found</span>
+              </div>
 
               {directFlights.length > 0 ? (
-                <div className="grid gap-4">
+                <ul className="grid gap-3">
                   {directFlights.map((deal, i) => (
-                    <Card
+                    <li
                       key={deal.id}
-                      className="p-6 transition-all duration-300 animate-fade-in-up border-l-4 border-l-purple-400 neon-card"
-                      style={{ animationDelay: `${i * 80}ms` }}
+                      className="bmf-panel p-5 md:p-6 grid md:grid-cols-[1fr_auto] gap-5 items-center animate-fade-in-up hover:border-[#ffb45e]/40 transition-colors"
+                      style={{ animationDelay: `${i * 60}ms` }}
                     >
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex items-center gap-6 flex-1">
-                          <div className="text-center min-w-[80px]">
-                            <p className="text-xl font-bold text-white">{deal.departureCity}</p>
-                            <p className="text-xs text-purple-100/70">Departure</p>
+                      <div className="flex items-center gap-5 md:gap-8 min-w-0">
+                        <p className="text-xl md:text-2xl font-bold tracking-[-0.02em] truncate">{deal.departureCity}</p>
+                        <div className="flex-1 min-w-[70px] max-w-[180px] flex flex-col items-center gap-1 text-white/50">
+                          <div className="w-full flex items-center gap-2">
+                            <span className="h-px flex-1 bg-white/20" />
+                            <Plane size={15} className="text-[#ffb45e]" />
+                            <span className="h-px flex-1 bg-white/20" />
                           </div>
-                          <div className="flex flex-col items-center gap-1">
-                            <div className="w-20 h-px bg-primary/30 relative">
-                              <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
-                                <svg className="w-5 h-5 text-purple-300" viewBox="0 0 24 24" fill="currentColor">
-                                  <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
-                                </svg>
-                              </div>
-                            </div>
-                            <span className="text-[10px] text-purple-100/65 font-medium">
-                              {deal.durationMinutes ? formatDuration(deal.durationMinutes) + ' · ' : ''}Non-stop
-                            </span>
-                          </div>
-                          <div className="text-center min-w-[80px]">
-                            <p className="text-xl font-bold text-white">{deal.arrivalCity}</p>
-                            <p className="text-xs text-purple-100/70">Arrival</p>
-                          </div>
-                          {deal.departureDate && (
-                            <div className="hidden lg:block text-sm text-purple-100/70 ml-4">
-                              <p className="text-xs uppercase tracking-wider font-semibold text-purple-100/50">Departs</p>
-                              <p>{new Date(deal.departureDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                            </div>
-                          )}
+                          <span className="text-[11px]">{deal.durationMinutes ? `${formatDuration(deal.durationMinutes)}, non-stop` : 'Non-stop'}</span>
                         </div>
-
-                        <div className="flex items-center gap-6">
-                          <div className="text-right">
-                            <div className="flex items-end gap-2">
-                              <span className="text-2xl font-bold text-purple-100">
-                                ₹{deal.cost.toLocaleString('en-IN')}
-                              </span>
-                              {deal.discount ? (
-                                <span className="text-sm text-muted-foreground line-through mb-0.5">
-                                  ₹{getOriginalPrice(deal).toLocaleString('en-IN')}
-                                </span>
-                              ) : null}
-                            </div>
-                            {deal.discount ? (
-                              <span className="text-xs font-semibold text-accent">{deal.discount}% OFF</span>
-                            ) : null}
-                            <div className="mt-1">
-                              <DealCountdown expiresAt={deal.expiresAt} compact />
-                            </div>
-                          </div>
-                          <Button
-                            onClick={() => router.push(`/booking?id=${deal.id}`)}
-                            className="bg-violet-500 hover:bg-violet-400 text-white font-semibold px-6"
-                          >
-                            Book Now
-                          </Button>
-                        </div>
+                        <p className="text-xl md:text-2xl font-bold tracking-[-0.02em] truncate">{deal.arrivalCity}</p>
+                        {day(deal.departureDate) && <p className="hidden lg:block text-sm text-white/55">Departs {day(deal.departureDate)}</p>}
                       </div>
-                    </Card>
+                      <div className="flex items-center justify-between md:justify-end gap-6">
+                        <div className="text-left md:text-right">
+                          <p className="text-2xl font-bold tabular-nums text-[#ffd29b]">{inr(deal.cost)}</p>
+                          <p className="text-xs text-white/50">
+                            {deal.discount ? (
+                              <>
+                                <span className="line-through">{inr(getOriginalPrice(deal))}</span>
+                                <span className="ml-2 text-[#ffb45e] font-semibold">{deal.discount}% off</span>
+                              </>
+                            ) : (
+                              'Economy, per seat'
+                            )}
+                          </p>
+                          <div className="mt-1">
+                            <DealCountdown expiresAt={deal.expiresAt} compact />
+                          </div>
+                        </div>
+                        <button type="button" className="bmf-cta" onClick={() => router.push(`/booking?id=${deal.id}`)}>
+                          Choose seats
+                        </button>
+                      </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               ) : (
-                <Card className="p-8 text-center border-dashed">
-                  <p className="text-purple-100/70 no-direct">No direct flights found for this route.</p>
-                </Card>
+                <p className="bmf-panel p-8 text-white/60">No direct flights on this route right now. Try a one-stop option below.</p>
               )}
             </section>
 
-            {/* Connecting Flights */}
-            <section>
-              <h2 className="text-2xl display-font font-bold text-purple-100 mb-6 flex items-center gap-3">
-                <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-secondary/10 text-secondary text-sm font-bold">🔗</span>
-                Connecting Flights
-                <span className="text-sm font-normal text-purple-100/70">
-                  ({connectingFlights.length} options)
-                </span>
-              </h2>
+            <section aria-labelledby="connect-title">
+              <div className="flex items-baseline justify-between gap-4 mb-5 border-b border-white/10 pb-3">
+                <h2 id="connect-title" className="text-2xl md:text-3xl font-bold tracking-[-0.03em]">One stop</h2>
+                <span className="bmf-section-label">{connectingFlights.length} options</span>
+              </div>
 
               {connectingFlights.length > 0 ? (
-                <div className="grid gap-4">
+                <ul className="grid gap-3">
                   {connectingFlights.map((pair, i) => {
                     const totalCost = pair.reduce((sum, leg) => sum + leg.cost, 0);
                     const totalOriginal = pair.reduce((sum, leg) => sum + getOriginalPrice(leg), 0);
                     const totalDuration = pair.reduce((sum, leg) => sum + (leg.durationMinutes || 0), 0);
                     return (
-                      <Card
-                        key={i}
-                        className="p-6 transition-all duration-300 animate-fade-in-up border-l-4 border-l-amber-400 neon-card"
-                        style={{ animationDelay: `${i * 80}ms` }}
-                      >
-                        <div className="flex flex-col gap-4">
-                          {/* Legs */}
+                      <li key={i} className="bmf-panel p-5 md:p-6 animate-fade-in-up" style={{ animationDelay: `${i * 60}ms` }}>
+                        <ol className="grid gap-3">
                           {pair.map((leg, j) => (
-                            <div key={leg.id} className="flex items-center gap-4">
-                              <div className="w-6 h-6 rounded-full bg-secondary/20 text-secondary flex items-center justify-center text-xs font-bold">
-                                {j + 1}
-                              </div>
-                              <div className="flex items-center gap-4 flex-1">
-                                  <span className="font-semibold text-purple-100 min-w-[80px]">{leg.departureCity}</span>
-                                <div className="flex-1 h-px bg-border relative">
-                                  <svg className="w-4 h-4 text-secondary absolute -top-2 left-1/2 -translate-x-1/2" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
-                                  </svg>
-                                </div>
-                                  <span className="font-semibold text-purple-100 min-w-[80px] text-right">{leg.arrivalCity}</span>
-                                <span className="text-sm font-bold text-purple-200 ml-2">₹{leg.cost.toLocaleString('en-IN')}</span>
-                                {leg.durationMinutes && (
-                                  <span className="text-xs text-purple-100/65 ml-1">({formatDuration(leg.durationMinutes)})</span>
-                                )}
-                                <DealCountdown expiresAt={leg.expiresAt} compact />
-                              </div>
-                            </div>
+                            <li key={leg.id} className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                              <span className="grid place-items-center w-6 h-6 rounded-full border border-white/20 text-[11px] text-white/70">{j + 1}</span>
+                              <span className="font-semibold">{leg.departureCity}</span>
+                              <Plane size={13} className="text-white/40" />
+                              <span className="font-semibold">{leg.arrivalCity}</span>
+                              <span className="text-sm text-white/55">{formatDuration(leg.durationMinutes)}</span>
+                              <span className="text-sm tabular-nums text-white/80 ml-auto">{inr(leg.cost)}</span>
+                              <DealCountdown expiresAt={leg.expiresAt} compact />
+                            </li>
                           ))}
-
-                          {/* Total + Book */}
-                          <div className="flex items-center justify-between pt-3 border-t border-purple-300/15 mt-1">
-                            <div className="flex items-center gap-3">
-                              <span className="text-xs uppercase tracking-wider font-semibold text-purple-100/70">Via {pair[0]?.arrivalCity}</span>
-                              <span className="text-xs bg-secondary/10 text-secondary px-2 py-0.5 rounded-full font-medium">1 stop</span>
-                              {totalDuration > 0 && (
-                                <span className="text-xs text-purple-100/65">{formatDuration(totalDuration)} total</span>
-                              )}
+                        </ol>
+                        <div className="flex flex-wrap items-center justify-between gap-4 pt-4 mt-4 border-t border-white/10">
+                          <p className="text-sm text-white/60">
+                            Change in {pair[0]?.arrivalCity}
+                            {totalDuration > 0 && <span>, {formatDuration(totalDuration)} flying</span>}
+                          </p>
+                          <div className="flex items-center gap-5">
+                            <div className="text-right">
+                              <p className="text-xl font-bold tabular-nums text-[#ffd29b]">{inr(totalCost)}</p>
+                              {totalOriginal > totalCost && <p className="text-xs text-white/45 line-through">{inr(totalOriginal)}</p>}
                             </div>
-                            <div className="flex items-center gap-4">
-                              <div className="text-right">
-                                <div className="flex items-end gap-2">
-                                  <span className="text-xl font-bold text-purple-100">
-                                    ₹{totalCost.toLocaleString('en-IN')}
-                                  </span>
-                                  {totalOriginal > totalCost && (
-                                    <span className="text-sm text-muted-foreground line-through mb-0.5">
-                                      ₹{totalOriginal.toLocaleString('en-IN')}
-                                    </span>
-                                  )}
-                                </div>
-                                  <span className="text-[10px] text-purple-100/65">Total for both legs</span>
-                              </div>
-                              <Button
-                                onClick={() => router.push(`/booking?id=${pair[0].id}`)}
-                                variant="outline"
-                                className="border-purple-400/50 text-purple-200 hover:bg-purple-400/15 font-semibold"
-                              >
-                                Book Leg 1
-                              </Button>
-                            </div>
+                            <button type="button" className="bmf-ghost" onClick={() => router.push(`/booking?id=${pair[0].id}`)}>
+                              Book first leg
+                            </button>
                           </div>
                         </div>
-                      </Card>
+                      </li>
                     );
                   })}
-                </div>
+                </ul>
               ) : (
-                <Card className="p-8 text-center border-dashed">
-                  <p className="text-purple-100/70">No connecting flights found for this route.</p>
-                </Card>
+                <p className="bmf-panel p-8 text-white/60">No one-stop routes for this pair yet.</p>
               )}
             </section>
           </div>
         )}
 
-        {!searched && !citiesLoading && (
-          <div className="text-center py-20 animate-fade-in-up">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary/5 mb-6">
-              <svg className="w-10 h-10 text-primary/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-purple-100 mb-2">Start your search</h3>
-            <p className="text-purple-100/70 max-w-md mx-auto">
-              Select a departure and arrival city above to find available flights and connecting routes.
-            </p>
-          </div>
+        {!searched && !citiesLoading && !loading && (
+          <p className="text-white/50 max-w-md">Pick a departure and arrival city to see direct flights and one-stop routes.</p>
         )}
       </div>
     </main>

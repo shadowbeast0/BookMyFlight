@@ -1,10 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
+import { Plane } from 'lucide-react';
 import { DealCountdown } from '@/components/DealCountdown';
 import { FlightDeal } from '@/lib/api';
+import styles from './BoardingPassDealCard.module.css';
 
 type Props = {
   deal: FlightDeal;
@@ -14,7 +15,7 @@ type Props = {
 };
 
 const formatDuration = (mins?: number) => {
-  if (!mins) return 'Direct';
+  if (!mins) return 'Non-stop';
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
@@ -26,7 +27,6 @@ export function BoardingPassDealCard({
   onConfirmBooking,
   bookingInProgress = false,
 }: Props) {
-  const [pointer, setPointer] = useState({ x: 0, y: 0 });
   const prefersReducedMotion = useReducedMotion();
 
   const originalPrice = useMemo(() => {
@@ -36,67 +36,45 @@ export function BoardingPassDealCard({
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay: animationDelayMs / 1000 }}
-      whileHover={prefersReducedMotion ? undefined : { y: -4 }}
-      className="boarding-pass"
-      onMouseMove={(e) => {
-        if (prefersReducedMotion) return;
-        const rect = e.currentTarget.getBoundingClientRect();
-        const x = ((e.clientX - rect.left) / rect.width) * 100;
-        const y = ((e.clientY - rect.top) / rect.height) * 100;
-        setPointer({ x, y });
-      }}
-      style={{
-        transformStyle: 'preserve-3d',
-      }}
+      initial={prefersReducedMotion ? false : { opacity: 0, y: 18 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-40px' }}
+      transition={{ duration: 0.5, delay: animationDelayMs / 1000, ease: [0.22, 1, 0.36, 1] }}
+      className={styles.card}
     >
-      <div className="boarding-flip-inner">
-        <div className="boarding-face boarding-face-front">
-          <div
-            className="boarding-glare"
-            style={{
-              background: `radial-gradient(circle at ${pointer.x}% ${pointer.y}%, rgba(255,255,255,0.28), transparent 42%)`,
-            }}
-          />
+      <div className={styles.route}>
+        <p title={deal.departureCity}>{deal.departureCity}</p>
+        <span className={styles.line} aria-hidden="true">
+          <i />
+          <Plane size={14} />
+          <i />
+        </span>
+        <p title={deal.arrivalCity}>{deal.arrivalCity}</p>
+      </div>
 
-          <div className="boarding-main">
-            <div className="boarding-route-row">
-              <p className="boarding-city" title={deal.departureCity}>{deal.departureCity}</p>
-              <span className="boarding-route-line">✈</span>
-              <p className="boarding-city" title={deal.arrivalCity}>{deal.arrivalCity}</p>
-            </div>
+      <div className={styles.meta}>
+        <span>{formatDuration(deal.durationMinutes)}</span>
+        <DealCountdown expiresAt={deal.expiresAt} compact />
+      </div>
 
-            <div className="boarding-meta-row">
-              <span className="boarding-chip">{formatDuration(deal.durationMinutes)}</span>
-              <DealCountdown expiresAt={deal.expiresAt} compact />
-            </div>
-
-            <div className="boarding-price-row">
-              <span className="boarding-price">₹{deal.cost.toLocaleString('en-IN')}</span>
-              {deal.discount ? (
-                <span className="boarding-discount">
-                  <span className="line-through opacity-60">₹{originalPrice.toLocaleString('en-IN')}</span>
-                  <span>{deal.discount}% OFF</span>
-                </span>
-              ) : null}
-            </div>
-          </div>
+      <div className={styles.foot}>
+        <div>
+          <p className={styles.price}>₹{deal.cost.toLocaleString('en-IN')}</p>
+          {deal.discount ? (
+            <p className={styles.was}>
+              <s>₹{originalPrice.toLocaleString('en-IN')}</s>
+              <b>{deal.discount}% off</b>
+            </p>
+          ) : null}
         </div>
-
-        <div className="boarding-face boarding-face-back">
-          <div className="boarding-back-inner">
-            <p className="boarding-back-title">Ready To Fly?</p>
-            <Button
-              className={`boarding-book-now ${bookingInProgress ? 'deal-booking-pulse' : ''}`}
-              onClick={() => onConfirmBooking(deal.id)}
-              disabled={!deal.isActive || bookingInProgress}
-            >
-              {bookingInProgress ? 'Booking...' : 'Book Now'}
-            </Button>
-          </div>
-        </div>
+        <button
+          type="button"
+          className={styles.book}
+          onClick={() => onConfirmBooking(deal.id)}
+          disabled={!deal.isActive || bookingInProgress}
+        >
+          {bookingInProgress ? 'Opening cabin…' : 'Choose seats'}
+        </button>
       </div>
     </motion.article>
   );

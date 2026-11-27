@@ -8,10 +8,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { DealCountdown } from '@/components/DealCountdown';
 import { CabinSeatMap } from '@/components/CabinSeatMap';
+import { PageHead } from '@/components/PageHead';
 import { ALL_SEATS, cabinClassOf, seatsTotal } from '@/lib/cabin';
 import { apiClient, FlightDeal, Booking } from '@/lib/api';
 import { useAuthContext } from '@/contexts/AuthContext';
@@ -179,30 +178,20 @@ export default function BookingPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen cyber-bg text-white py-12">
-        <div className="max-w-2xl mx-auto px-4">
-          <div className="animate-pulse space-y-6">
-            <div className="h-12 bg-purple-500/10 rounded-lg" />
-            <div className="h-64 bg-purple-500/10 rounded-lg" />
-          </div>
-        </div>
+      <main className="min-h-screen cyber-bg text-white grid place-items-center">
+        <p className="text-white/60 animate-pulse">Opening the cabin…</p>
       </main>
     );
   }
 
   if (error || !deal) {
     return (
-      <main className="min-h-screen cyber-bg text-white py-12">
-        <div className="max-w-2xl mx-auto px-4">
-          <Card className="p-6 border-destructive/30 bg-destructive/5">
-            <h2 className="text-lg font-bold text-destructive mb-2">Deal Not Found</h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              {error || 'The deal you are looking for is not available.'}
-            </p>
-            <Button onClick={() => router.push('/')} className="bg-violet-500 hover:bg-violet-400 text-white">
-              Back to Flights
-            </Button>
-          </Card>
+      <main className="min-h-screen cyber-bg text-white">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 pt-16 md:pt-24 pb-24">
+          <PageHead kicker="Fare not found" top="This flight" bottom="has left." sub={error || 'The fare you opened is no longer available.'} />
+          <button type="button" onClick={() => router.push('/')} className="bmf-cta">
+            See today’s fares
+          </button>
         </div>
       </main>
     );
@@ -239,225 +228,122 @@ export default function BookingPage() {
 
   return (
     <main className="min-h-screen cyber-bg text-white">
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        <h1 className="text-3xl font-bold text-white mb-8 animate-fade-in-up display-font neon-title">Complete Your Booking</h1>
-
-        <CabinSeatMap
-          unitPrice={unitPrice}
-          occupied={occupiedSeatIds}
-          selected={selectedSeats}
-          passengerCount={passengerCount}
-          adults={adults}
-          kids={children}
-          onAdults={setAdults}
-          onKids={setChildren}
-          onToggle={toggleSeat}
-        />
-
-        <div className="grid gap-8 md:grid-cols-2">
-          {/* Deal Details */}
-          <Card className="p-6 shadow-md animate-fade-in-up animation-delay-100">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Flight Details</h2>
-            <div className="mb-6">
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-center flex-1">
-                  <p className="text-2xl font-bold text-foreground">{deal.departureCity.split(',')[0]}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Departure</p>
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <svg className="w-6 h-6 text-primary flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
-                  </svg>
-                  {deal.durationMinutes && (
-                    <span className="text-xs text-muted-foreground font-medium">{formatDuration(deal.durationMinutes)}</span>
-                  )}
-                </div>
-                <div className="text-center flex-1">
-                  <p className="text-2xl font-bold text-foreground">{deal.arrivalCity.split(',')[0]}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Arrival</p>
-                </div>
-              </div>
+      <CabinSeatMap
+        route={`${deal.departureCity.split(',')[0]} to ${deal.arrivalCity.split(',')[0]}`}
+        unitPrice={unitPrice}
+        occupied={occupiedSeatIds}
+        selected={selectedSeats}
+        passengerCount={passengerCount}
+        adults={adults}
+        kids={children}
+        onAdults={setAdults}
+        onKids={setChildren}
+        onToggle={toggleSeat}
+      >
+        <div className="space-y-6">
+          <div>
+            <p className="text-xs text-white/50 mb-2">Your flight</p>
+            <div className="flex items-center gap-3">
+              <p className="text-2xl font-bold tracking-[-0.03em] truncate">{deal.departureCity.split(',')[0]}</p>
+              <span className="flex-1 min-w-6 flex items-center gap-1.5 text-[#ffb45e]">
+                <span className="h-px flex-1 bg-white/20" />
+                <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
+                </svg>
+                <span className="h-px flex-1 bg-white/20" />
+              </span>
+              <p className="text-2xl font-bold tracking-[-0.03em] truncate text-right">{deal.arrivalCity.split(',')[0]}</p>
             </div>
-
-            <div className="border-t pt-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Economy fare / Passenger</span>
-                <span className="text-2xl font-bold text-primary">₹{unitPrice.toLocaleString('en-IN')}</span>
-              </div>
-              {deal.discount ? (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Original</span>
-                    <span className="text-sm line-through text-muted-foreground">₹{originalPrice.toLocaleString('en-IN')}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Discount</span>
-                    <span className="text-sm font-semibold text-accent">{deal.discount}% OFF</span>
-                  </div>
-                </>
-              ) : null}
-              {deal.durationMinutes && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Duration</span>
-                  <span className="text-sm font-semibold text-foreground">{formatDuration(deal.durationMinutes)}</span>
-                </div>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Seats</span>
-                <span className="text-sm font-semibold text-foreground text-right">
-                  {selectedSeats.length ? `${selectedSeats.join(', ')} (${seatClassSummary})` : 'Pick in the cabin above'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between border-t pt-2 mt-2">
-                <span className="text-muted-foreground">Total ({passengerCount} Passenger{passengerCount > 1 ? 's' : ''})</span>
-                <div className="text-right">
-                  <span className="text-lg font-bold text-primary">₹{totalPrice.toLocaleString('en-IN')}</span>
-                  {deal.discount ? (
-                    <div className="text-xs line-through text-muted-foreground">₹{totalOriginalPrice.toLocaleString('en-IN')}</div>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-
-            {/* Selected departure & arrival preview */}
-            {departureDate && departureTime && (
-              <div className="mt-4 pt-4 border-t bg-primary/5 rounded-lg p-3 space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Departure</span>
-                  <span className="font-semibold text-foreground">
-                    {new Date(`${departureDate}T${departureTime}`).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-                {arrivalTime && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Est. Arrival</span>
-                    <span className="font-semibold text-accent">
-                      {arrivalTime.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="mt-6 pt-4 border-t">
+            <p className="mt-1 text-sm text-white/55">
+              {deal.durationMinutes ? `${formatDuration(deal.durationMinutes)} non-stop` : 'Non-stop'}
+              {arrivalTime && `, lands ${arrivalTime.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
+            </p>
+            <div className="mt-4 pt-4 border-t border-white/10">
               <DealCountdown expiresAt={deal.expiresAt} />
             </div>
+          </div>
 
-            {isLoggedIn && (
-              <div className="mt-4 rounded-lg bg-primary/5 border border-primary/15 p-3 flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Wallet Balance</span>
-                <span className="font-bold text-primary">Rs {walletBalance.toLocaleString('en-IN')}</span>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="bmf-label">Departure date</span>
+              <input id="depDate" type="date" value={departureDate} onChange={(e) => setDepartureDate(e.target.value)} className="bmf-field [color-scheme:dark]" />
+            </label>
+            <label className="block">
+              <span className="bmf-label">Time</span>
+              <input id="depTime" type="time" value={departureTime} onChange={(e) => setDepartureTime(e.target.value)} className="bmf-field [color-scheme:dark]" />
+            </label>
+          </div>
+
+          <div className="space-y-3">
+            <label className="block">
+              <span className="bmf-label">Passenger name</span>
+              <input id="name" type="text" placeholder="As on your ID" value={passengerName} onChange={(e) => setPassengerName(e.target.value)} className="bmf-field" autoComplete="name" />
+            </label>
+            <label className="block">
+              <span className="bmf-label">Phone number</span>
+              <input
+                id="phone"
+                type="tel"
+                placeholder="+919876543210"
+                value={phoneNumber}
+                onChange={(e) => {
+                  setPhoneNumber(e.target.value);
+                  setPhoneError(null);
+                }}
+                className="bmf-field"
+                autoComplete="tel"
+              />
+              {phoneError && <span className="block text-xs text-destructive mt-2">{phoneError}</span>}
+            </label>
+          </div>
+
+          <dl className="space-y-2.5 text-sm border-t border-white/10 pt-5">
+            <div className="flex justify-between gap-4">
+              <dt className="text-white/55">Economy fare</dt>
+              <dd className="tabular-nums">₹{unitPrice.toLocaleString('en-IN')} <span className="text-white/45">per seat</span></dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-white/55">Seats</dt>
+              <dd className="text-right">{selectedSeats.length ? `${selectedSeats.join(', ')}` : <span className="text-white/45">Pick in the cabin</span>}</dd>
+            </div>
+            {seatClassSummary && (
+              <div className="flex justify-between gap-4">
+                <dt className="text-white/55">Cabin</dt>
+                <dd className="text-right">{seatClassSummary}</dd>
               </div>
             )}
-          </Card>
-
-          {/* Booking Form */}
-          <div className="space-y-6 animate-fade-in-up animation-delay-200">
-            <Card className="p-6 shadow-md">
-              <h2 className="text-lg font-semibold text-foreground mb-1">Passenger Details</h2>
-              <p className="text-sm text-muted-foreground mb-5">Fill in your details to book this flight</p>
-
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-foreground mb-2">
-                    Passenger Name
-                  </label>
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="John Doe"
-                    value={passengerName}
-                    onChange={(e) => setPassengerName(e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-foreground mb-2">
-                    Phone Number *
-                  </label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="+919876543210"
-                    value={phoneNumber}
-                    onChange={(e) => {
-                      setPhoneNumber(e.target.value);
-                      setPhoneError(null);
-                    }}
-                    className="w-full"
-                  />
-                  {phoneError && (
-                    <p className="text-xs text-destructive mt-2">{phoneError}</p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="depDate" className="block text-sm font-medium text-foreground mb-2">
-                      Departure Date
-                    </label>
-                    <Input
-                      id="depDate"
-                      type="date"
-                      value={departureDate}
-                      onChange={(e) => setDepartureDate(e.target.value)}
-                      className="w-full"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="depTime" className="block text-sm font-medium text-foreground mb-2">
-                      Departure Time
-                    </label>
-                    <Input
-                      id="depTime"
-                      type="time"
-                      value={departureTime}
-                      onChange={(e) => setDepartureTime(e.target.value)}
-                      className="w-full"
-                    />
-                  </div>
-                </div>
-
-                {arrivalTime && (
-                  <div className="bg-accent/10 rounded-lg p-3 flex items-center gap-3">
-                    <svg className="w-5 h-5 text-accent flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Estimated arrival: </span>
-                      <span className="font-semibold text-accent">
-                        {arrivalTime.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      {deal.durationMinutes && (
-                        <span className="text-muted-foreground"> ({formatDuration(deal.durationMinutes)} flight)</span>
-                      )}
-                    </div>
-                  </div>
-                )}
+            {deal.discount ? (
+              <div className="flex justify-between gap-4">
+                <dt className="text-white/55">You save</dt>
+                <dd className="text-[#ffb45e] tabular-nums">
+                  {deal.discount}% <s className="ml-2 text-white/40">₹{totalOriginalPrice.toLocaleString('en-IN')}</s>
+                </dd>
               </div>
+            ) : null}
+            <div className="flex justify-between items-baseline gap-4 pt-3 border-t border-white/10">
+              <dt className="text-white/70">Total, {passengerCount} passenger{passengerCount > 1 ? 's' : ''}</dt>
+              <dd className="text-3xl font-bold tracking-[-0.04em] tabular-nums text-[#ffd29b]">₹{totalPrice.toLocaleString('en-IN')}</dd>
+            </div>
+            {isLoggedIn && (
+              <div className="flex justify-between gap-4 text-xs">
+                <dt className="text-white/45">Wallet balance</dt>
+                <dd className="tabular-nums text-white/70">₹{walletBalance.toLocaleString('en-IN')}</dd>
+              </div>
+            )}
+          </dl>
 
-              {bookingError && (
-                <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 mt-4">
-                  <p className="text-sm text-destructive font-medium">{bookingError}</p>
-                </div>
-              )}
+          {bookingError && (
+            <p className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive" role="alert">{bookingError}</p>
+          )}
 
-              <Button
-                onClick={handleBooking}
-                disabled={bookingLoading || !phoneNumber}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 text-base mt-6"
-              >
-                {bookingLoading ? 'Processing...' : 'Confirm & Book Flight'}
-              </Button>
-
-              <p className="text-xs text-muted-foreground text-center mt-4">
-                By confirming, you agree to our terms and conditions.
-              </p>
-            </Card>
+          <div>
+            <button type="button" onClick={handleBooking} disabled={bookingLoading || !phoneNumber} className="bmf-cta w-full">
+              {bookingLoading ? 'Booking…' : selectedSeats.length === passengerCount ? `Book ${selectedSeats.length > 1 ? 'seats' : 'seat'} ${selectedSeats.join(', ')}` : 'Confirm and book'}
+            </button>
+            <p className="text-xs text-white/40 text-center mt-3">Paid from your wallet. By booking you agree to the fare rules.</p>
           </div>
         </div>
-      </div>
+      </CabinSeatMap>
 
       {/* Receipt Dialog */}
       <Dialog open={showReceipt} onOpenChange={setShowReceipt}>
@@ -534,7 +420,7 @@ export default function BookingPage() {
               {booking?.walletBalance != null && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Wallet Balance</span>
-                  <span className="font-bold text-foreground">Rs {booking.walletBalance.toLocaleString('en-IN')}</span>
+                  <span className="font-bold text-foreground">₹{booking.walletBalance.toLocaleString('en-IN')}</span>
                 </div>
               )}
               <div className="flex justify-between">

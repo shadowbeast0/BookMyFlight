@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Eye, Minus, Plane, Plus, X } from 'lucide-react';
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Eye, Minus, Plane, Plus, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { CABIN, CabinClassId, cabinClassOf, seatPosition, seatPrice } from '@/lib/cabin';
 import styles from './CabinSeatMap.module.css';
 
@@ -12,12 +12,15 @@ type CabinApi = {
   focusClass: (id: CabinClassId | 'all') => void;
   viewSeat: (seat: string) => void;
   overview: () => void;
+  zoom: (dir: number) => void;
+  setInset: (px: number) => void;
   setRunning: (v: boolean) => void;
   resize: () => void;
   dispose: () => void;
 };
 
 type Props = {
+  route: string;
   unitPrice: number;
   occupied: string[];
   selected: string[];
@@ -27,14 +30,16 @@ type Props = {
   onAdults: (n: number) => void;
   onKids: (n: number) => void;
   onToggle: (seat: string) => void;
+  children?: ReactNode;
 };
 
 const inr = (n: number) => `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 const positionName = { window: 'Window', middle: 'Middle', aisle: 'Aisle' };
 
-export function CabinSeatMap({ unitPrice, occupied, selected, passengerCount, adults, kids, onAdults, onKids, onToggle }: Props) {
+export function CabinSeatMap({ route, unitPrice, occupied, selected, passengerCount, adults, kids, onAdults, onKids, onToggle, children }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
   const apiRef = useRef<CabinApi | null>(null);
   const toggleRef = useRef(onToggle);
   const [ready, setReady] = useState(false);
@@ -66,7 +71,14 @@ export function CabinSeatMap({ unitPrice, occupied, selected, passengerCount, ad
         }
         apiRef.current = api;
         setReady(true);
-        const ro = new ResizeObserver(() => api.resize());
+        const syncInset = () => {
+          const panel = panelRef.current;
+          const wide = window.innerWidth >= 960;
+          api.setInset(wide && panel ? panel.offsetWidth + 24 : 0);
+          api.resize();
+        };
+        syncInset();
+        const ro = new ResizeObserver(syncInset);
         if (canvasRef.current) ro.observe(canvasRef.current);
         const io = new IntersectionObserver(([en]) => api.setRunning(en.isIntersecting));
         if (stageRef.current) io.observe(stageRef.current);
@@ -99,6 +111,18 @@ export function CabinSeatMap({ unitPrice, occupied, selected, passengerCount, ad
     }
   }, [selected, viewing]);
 
+  useEffect(() => {
+    if (!viewing) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setViewing(null);
+        apiRef.current?.overview();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [viewing]);
+
   const taken = useMemo(() => new Set(occupied), [occupied]);
 
   const freeByClass = useMemo(() => {
@@ -124,6 +148,7 @@ export function CabinSeatMap({ unitPrice, occupied, selected, passengerCount, ad
     setViewing(seat);
     setHover(null);
     apiRef.current?.viewSeat(seat);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const back = () => {
@@ -136,27 +161,29 @@ export function CabinSeatMap({ unitPrice, occupied, selected, passengerCount, ad
   const viewCls = viewing ? cabinClassOf(viewing) : null;
 
   return (
-    <section className={styles.wrap} aria-labelledby="seat-title">
-      <div ref={stageRef} className={`${styles.stage} ${viewing ? styles.inside : ''}`}>
+    <div className={`${styles.wrap} ${viewing ? styles.inside : ''}`}>
+      <section ref={stageRef} className={styles.stage} aria-labelledby="seat-title">
         <canvas ref={canvasRef} className={styles.canvas} aria-hidden="true" />
         {!ready && !failed && (
           <div className={styles.loader} aria-hidden="true">
             <Plane size={16} /> Opening the cabin…
           </div>
         )}
-        {failed && <div className={styles.fallback}>3D view isn’t available on this device. Pick seats from the list below.</div>}
+        {failed && <div className={styles.fallback}>3D view isn’t available on this device. Pick seats by number in the checkout panel.</div>}
 
         <header className={styles.top}>
-          <div>
-            <h2 id="seat-title" className={styles.title}>Choose your seats</h2>
-            <p className={styles.hint}>
-              {viewing
-                ? 'Looking out from your seat. Move the cursor to look around.'
-                : remaining > 0
-                ? `Tap ${remaining} more seat${remaining > 1 ? 's' : ''} inside the cabin. Drag to turn the aircraft.`
-                : 'All seats picked. Tap a chosen seat to swap it.'}
-            </p>
-          </div>
+          <p className={styles.kicker}>{route}</p>
+          <h1 id="seat-title" className={styles.title}>
+            <span>Pick your</span>
+            <span className={styles.dim}>seat.</span>
+          </h1>
+          <p className={styles.hint}>
+            {viewing
+              ? 'Drag to look around the seat. Scroll or pinch to zoom.'
+              : remaining > 0
+              ? `Tap ${remaining} more seat${remaining > 1 ? 's' : ''} in the cabin. Drag to turn the aircraft, scroll to zoom.`
+              : 'All seats picked. Tap a seat of yours to release it.'}
+          </p>
           <div className={styles.pax}>
             <span>Adults</span>
             <button type="button" onClick={() => onAdults(Math.max(1, adults - 1))} aria-label="Fewer adults"><Minus size={13} /></button>
@@ -177,8 +204,8 @@ export function CabinSeatMap({ unitPrice, occupied, selected, passengerCount, ad
           {CABIN.map((c) => (
             <button key={c.id} type="button" role="tab" aria-selected={focus === c.id} className={styles.cls} data-cls={c.id} onClick={() => pickFocus(c.id)}>
               <span className={styles.clsName}><i />{c.name}</span>
-              <span className={styles.clsPrice}>{inr(seatPrice(unitPrice, `${c.firstRow}${c.letters[0]}`))}<small> / seat</small></span>
-              <span className={styles.clsMeta}>Rows {c.firstRow}–{c.lastRow} · {freeByClass[c.id]} free</span>
+              <span className={styles.clsPrice}>{inr(seatPrice(unitPrice, `${c.firstRow}${c.letters[0]}`))}<small> per seat</small></span>
+              <span className={styles.clsMeta}>Rows {c.firstRow}–{c.lastRow}, {freeByClass[c.id]} free</span>
               <span className={styles.clsPerks}>{c.perks}</span>
             </button>
           ))}
@@ -187,10 +214,12 @@ export function CabinSeatMap({ unitPrice, occupied, selected, passengerCount, ad
         {hover && hoverCls && !viewing && (
           <div className={styles.tip} style={{ transform: `translate3d(${hover.x}px, ${hover.y}px, 0)` }} aria-hidden="true">
             <b>{hover.seat}</b>
-            <span>{hoverCls.name} · {positionName[seatPosition(hover.seat)]}</span>
-            <em>{hover.occupied ? 'Taken' : selected.includes(hover.seat) ? 'Yours · tap to release' : inr(seatPrice(unitPrice, hover.seat))}</em>
+            <span>{hoverCls.name}, {positionName[seatPosition(hover.seat)].toLowerCase()}</span>
+            <em>{hover.occupied ? 'Taken' : selected.includes(hover.seat) ? 'Yours, tap to release' : inr(seatPrice(unitPrice, hover.seat))}</em>
           </div>
         )}
+
+        {viewing && <p className={styles.viewHint}>Drag to look around. Scroll or pinch to zoom. Esc to go back.</p>}
 
         {viewing && viewCls && (
           <div className={styles.viewBar}>
@@ -198,10 +227,15 @@ export function CabinSeatMap({ unitPrice, occupied, selected, passengerCount, ad
               <ArrowLeft size={15} /> Back to cabin
             </button>
             <p>
-              <b>Seat {viewing}</b> {viewCls.name} · {positionName[seatPosition(viewing)]} seat
+              <b>Seat {viewing}</b> {viewCls.name}, {positionName[seatPosition(viewing)].toLowerCase()}
             </p>
           </div>
         )}
+
+        <div className={styles.zoom} role="group" aria-label="Zoom">
+          <button type="button" onClick={() => apiRef.current?.zoom(1)} aria-label="Zoom in"><ZoomIn size={17} /></button>
+          <button type="button" onClick={() => apiRef.current?.zoom(-1)} aria-label="Zoom out"><ZoomOut size={17} /></button>
+        </div>
 
         <div className={styles.bottom}>
           <ul className={styles.legend} aria-label="Legend">
@@ -218,7 +252,7 @@ export function CabinSeatMap({ unitPrice, occupied, selected, passengerCount, ad
                 <li key={s} className={viewing === s ? styles.chipOn : ''}>
                   <span className={styles.chipSeat}>{s}</span>
                   <span className={styles.chipText}>
-                    {c?.name} · {positionName[seatPosition(s)]}
+                    {c?.name}, {positionName[seatPosition(s)].toLowerCase()}
                     <b>{inr(seatPrice(unitPrice, s))}</b>
                   </span>
                   <button type="button" onClick={() => (viewing === s ? back() : look(s))} aria-label={viewing === s ? 'Back to cabin' : `View from seat ${s}`}>
@@ -235,31 +269,34 @@ export function CabinSeatMap({ unitPrice, occupied, selected, passengerCount, ad
             ))}
           </ul>
         </div>
-      </div>
+      </section>
 
-      <label className={styles.list}>
-        <span>Or add a seat by number</span>
-        <select
-          value=""
-          onChange={(e) => {
-            if (e.target.value) onToggle(e.target.value);
-          }}
-        >
-          <option value="">Choose a seat…</option>
-          {CABIN.map((c) => (
-            <optgroup key={c.id} label={`${c.name} · ${inr(seatPrice(unitPrice, `${c.firstRow}${c.letters[0]}`))}`}>
-              {Array.from({ length: c.lastRow - c.firstRow + 1 }, (_, i) => c.firstRow + i).flatMap((r) =>
-                c.letters
-                  .map((l) => `${r}${l}`)
-                  .filter((s) => !taken.has(s) && !selected.includes(s))
-                  .map((s) => (
-                    <option key={s} value={s}>{s} · {positionName[seatPosition(s)]}</option>
-                  ))
-              )}
-            </optgroup>
-          ))}
-        </select>
-      </label>
-    </section>
+      <aside ref={panelRef} className={styles.panel} aria-label="Checkout">
+        {children}
+        <label className={styles.list}>
+          <span>Add a seat by number</span>
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value) onToggle(e.target.value);
+            }}
+          >
+            <option value="">Choose a seat…</option>
+            {CABIN.map((c) => (
+              <optgroup key={c.id} label={`${c.name}, ${inr(seatPrice(unitPrice, `${c.firstRow}${c.letters[0]}`))}`}>
+                {Array.from({ length: c.lastRow - c.firstRow + 1 }, (_, i) => c.firstRow + i).flatMap((r) =>
+                  c.letters
+                    .map((l) => `${r}${l}`)
+                    .filter((s) => !taken.has(s) && !selected.includes(s))
+                    .map((s) => (
+                      <option key={s} value={s}>{s}, {positionName[seatPosition(s)].toLowerCase()}</option>
+                    ))
+                )}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+      </aside>
+    </div>
   );
 }

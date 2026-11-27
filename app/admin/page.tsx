@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { apiClient, FlightDeal } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/contexts/AuthContext';
+import { PageHead } from '@/components/PageHead';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -108,21 +109,16 @@ export default function AdminPage() {
   if (!isLoggedIn || !isAdmin) {
     return (
       <main className="min-h-screen cyber-bg text-white">
-        <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-destructive/10 mb-6">
-            <svg className="w-10 h-10 text-destructive/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v.01M12 9v2m0-8a9 9 0 110 18 9 9 0 010-18z" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-white mb-3">Access Denied</h2>
-          <p className="text-purple-100/70 mb-6">
-            {!isLoggedIn
-              ? 'Please login with an admin phone number to access this page.'
-              : 'Your account does not have admin privileges.'}
-          </p>
-          <Button onClick={() => router.push('/')} className="font-semibold bg-violet-500 hover:bg-violet-400 text-white">
-            Go to Home
-          </Button>
+        <div className="max-w-6xl mx-auto px-4 md:px-6 pt-16 md:pt-24 pb-24">
+          <PageHead
+            kicker="Admin"
+            top="Crew"
+            bottom="only."
+            sub={!isLoggedIn ? 'Sign in with an admin phone number to manage fares.' : 'This account does not have admin access.'}
+          />
+          <button type="button" onClick={() => router.push('/')} className="bmf-ghost">
+            Back to home
+          </button>
         </div>
       </main>
     );
@@ -130,21 +126,17 @@ export default function AdminPage() {
 
   return (
     <main className="min-h-screen cyber-bg text-white">
-      {/* Admin Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-violet-900/80 via-purple-900/70 to-fuchsia-900/50 py-10 border-b border-purple-400/20">
-        <div className="max-w-7xl mx-auto px-4">
-          <h1 className="text-3xl font-extrabold text-white mb-1 animate-fade-in-up display-font neon-title">Admin Dashboard</h1>
-          <p className="text-purple-100/65 animate-fade-in-up animation-delay-100">Manage all flights and special deals</p>
-        </div>
+      <section className="max-w-7xl mx-auto px-4 md:px-6 pt-16 md:pt-24">
+        <PageHead kicker="Admin" top="Fare" bottom="control." sub="Create, edit and retire flights and their discounts." />
       </section>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 py-12">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 pb-24">
         {/* Action Button */}
         {!showForm && (
           <Button
             onClick={() => setShowForm(true)}
-            className="mb-8 bg-violet-500 hover:bg-violet-400 text-white font-semibold"
+            className="mb-8 bg-primary hover:bg-[#ffb45e] text-primary-foreground rounded-full font-semibold"
           >
             + Create New Flight
           </Button>
@@ -309,7 +301,7 @@ export default function AdminPage() {
             <div className="flex gap-3">
               <Button
                 onClick={handleSave}
-                className="bg-violet-500 hover:bg-violet-400 text-white font-semibold"
+                className="bg-primary hover:bg-[#ffb45e] text-primary-foreground rounded-full font-semibold"
               >
                 {editingId ? 'Update Deal' : 'Create Deal'}
               </Button>

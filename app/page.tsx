@@ -1,81 +1,39 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useDeals } from '@/hooks/useDeals';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { DealCountdown } from '@/components/DealCountdown';
 import { FlightDeal } from '@/lib/api';
-import { FlightPathJourney } from '@/components/FlightPathJourney';
 import { FlightShowcase } from '@/components/FlightShowcase';
 import { BoardingPassDealCard } from '@/components/BoardingPassDealCard';
+import { PageHead } from '@/components/PageHead';
+
+const SORTS = [
+  { id: 'best', label: 'Biggest discount' },
+  { id: 'cheap', label: 'Lowest fare' },
+  { id: 'fast', label: 'Shortest flight' },
+] as const;
+
+const PROMISES = [
+  { title: 'Seats you can see', body: 'Walk the cabin in 3D, check the view from the window, then lock the seat.' },
+  { title: 'Refunds that refund', body: 'Full refund 10+ days before departure. 50% after that, straight to your wallet.' },
+  { title: 'Fares that move', body: 'Up to 30% off on limited-time routes across India, updated live.' },
+];
 
 export default function Home() {
   const { deals, loading, error, refetch } = useDeals();
   const router = useRouter();
   const [sortMode, setSortMode] = useState<'best' | 'cheap' | 'fast'>('best');
   const [bookingDealId, setBookingDealId] = useState<string | null>(null);
-  const [timeTheme, setTimeTheme] = useState<'morning' | 'day' | 'evening' | 'night'>('night');
-  const [signalIndex, setSignalIndex] = useState(0);
 
-  const handleSelectDeal = (dealId: string) => {
-    router.push(`/booking?id=${dealId}`);
-  };
-
-  // Keep only discounted flights on homepage.
-  const specialDeals = deals.filter((d: FlightDeal) => d.discount && d.discount > 0);
+  const specialDeals = useMemo(() => deals.filter((d: FlightDeal) => d.discount && d.discount > 0), [deals]);
 
   const sortedDeals = useMemo(() => {
     const copy = [...specialDeals];
-    if (sortMode === 'cheap') {
-      return copy.sort((a, b) => a.cost - b.cost);
-    }
-    if (sortMode === 'fast') {
-      return copy.sort((a, b) => (a.durationMinutes ?? 9999) - (b.durationMinutes ?? 9999));
-    }
+    if (sortMode === 'cheap') return copy.sort((a, b) => a.cost - b.cost);
+    if (sortMode === 'fast') return copy.sort((a, b) => (a.durationMinutes ?? 9999) - (b.durationMinutes ?? 9999));
     return copy.sort((a, b) => (b.discount ?? 0) - (a.discount ?? 0));
   }, [specialDeals, sortMode]);
-
-  const hottestDeal = useMemo(() => {
-    return sortedDeals
-      .filter((deal) => deal.isActive)
-      .sort((a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime())[0];
-  }, [sortedDeals]);
-
-  const liveSignals = useMemo(
-    () => [
-      'Neon route engine calibrated',
-      'Discount radar scanning live inventory',
-      'Smart sort model balancing price/time',
-      'Milestone trackers synced to scroll stream',
-    ],
-    []
-  );
-
-  useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour >= 5 && hour < 11) {
-      setTimeTheme('morning');
-      return;
-    }
-    if (hour >= 11 && hour < 17) {
-      setTimeTheme('day');
-      return;
-    }
-    if (hour >= 17 && hour < 21) {
-      setTimeTheme('evening');
-      return;
-    }
-    setTimeTheme('night');
-  }, []);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setSignalIndex((prev) => (prev + 1) % liveSignals.length);
-    }, 2200);
-    return () => window.clearInterval(timer);
-  }, [liveSignals.length]);
 
   const handleBookWithAnimation = (dealId: string) => {
     if (bookingDealId) return;
@@ -86,165 +44,70 @@ export default function Home() {
   };
 
   return (
-    <main className={`min-h-screen cyber-bg text-white time-theme-${timeTheme}`}>
+    <main className="min-h-screen cyber-bg text-white">
       <FlightShowcase deals={deals} />
 
-      <section className="hackathon-marquee-wrap" aria-label="Hackathon visual marquee">
-        <div className="hackathon-marquee-track">
-          {[
-            'LIVE DEMO READY',
-            'NEON FLIGHT ENGINE',
-            'SCROLL-SYNC MOTION',
-            'RAPID BUILD MODE',
-            'TEAM SKYLINE',
-            'PITCH IN PROGRESS',
-          ].map((item, idx) => (
-            <span key={`${item}-${idx}`} className="hackathon-marquee-item">{item}</span>
-          ))}
-        </div>
-      </section>
-
-      <div className="section-cinematic-divider" />
-
-      {/* Discounted Flights Section */}
-      <div id="flights" className="relative max-w-7xl mx-auto px-4 py-16 overflow-hidden">
-        <div className="route-depth-map" />
-        <FlightPathJourney containerId="flights" />
-
-        {hottestDeal && (
-          <div className="deal-radar-widget hidden xl:block">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-100/70">Deal Radar</p>
-            <p className="text-sm font-bold text-white mt-1">{hottestDeal.departureCity} to {hottestDeal.arrivalCity}</p>
-            <p className="text-xs text-purple-100/70 mt-0.5">Ends soon: {new Date(hottestDeal.expiresAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>
-            <div className="deal-radar-scan mt-3" />
-          </div>
-        )}
-
-        <div className="relative z-30 text-center mb-12 animate-fade-in-up">
-          <div className="inline-flex items-center gap-2 bg-primary/5 rounded-full px-4 py-1.5 mb-4">
-            <svg className="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
-            </svg>
-            <span className="text-sm font-semibold text-primary">Discounted Flights Only</span>
-          </div>
-          <h2 className="text-3xl display-font font-extrabold text-white mb-3">
-            Best Discounted Deals
-          </h2>
-          <p className="text-purple-100/65 max-w-lg mx-auto">
-            Only flights with active discounts are shown here.
-          </p>
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSortMode('best')}
-              className={`deal-sort-chip ${sortMode === 'best' ? 'active' : ''}`}
-            >
-              Best for You
-            </button>
-            <button
-              type="button"
-              onClick={() => setSortMode('cheap')}
-              className={`deal-sort-chip ${sortMode === 'cheap' ? 'active' : ''}`}
-            >
-              Cheapest
-            </button>
-            <button
-              type="button"
-              onClick={() => setSortMode('fast')}
-              className={`deal-sort-chip ${sortMode === 'fast' ? 'active' : ''}`}
-            >
-              Fastest
-            </button>
-          </div>
-
-          <div className="hackathon-dock mx-auto mt-6">
-            <div className="hackathon-dock-head">
-              <span className="hackathon-dot" />
-              <span className="hackathon-label">Mission Control</span>
-              <span className="hackathon-stream">Live Stream</span>
-            </div>
-            <p className="hackathon-signal">{liveSignals[signalIndex]}</p>
-            <div className="hackathon-chips">
-              {['Route AI', 'Deal Radar', 'Motion Engine', 'Time Themes', 'Pin Select'].map((chip) => (
-                <span key={chip} className="hackathon-chip">{chip}</span>
-              ))}
-            </div>
+      <section id="flights" className="relative max-w-7xl mx-auto px-4 md:px-6 pt-24 md:pt-32 pb-20" aria-labelledby="fares-title">
+        <div className="grid lg:grid-cols-[1fr_auto] items-end gap-6 mb-10">
+          <PageHead as="h2" kicker="Today's fares" top="Every seat" bottom="on sale." sub="Only routes with a live discount make this list. Pick one and choose your seat inside the cabin." />
+          <div className="flex flex-wrap gap-2 mb-10" role="group" aria-label="Sort fares">
+            {SORTS.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setSortMode(s.id)}
+                aria-pressed={sortMode === s.id}
+                className={`h-10 px-4 rounded-full text-sm font-medium border transition-colors ${
+                  sortMode === s.id
+                    ? 'bg-[#ffb45e] border-[#ffb45e] text-[#1a0e05]'
+                    : 'border-white/15 text-white/70 hover:text-white hover:border-white/30'
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
           </div>
         </div>
 
         {loading ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(6)].map((_, i) => (
-              <Card key={i} className="p-6 animate-pulse">
-                <div className="h-32 bg-muted rounded-lg mb-4" />
-                <div className="h-6 bg-muted rounded mb-2" />
-                <div className="h-4 bg-muted rounded w-2/3" />
-              </Card>
+              <div key={i} className="bmf-panel h-[212px] animate-pulse" />
             ))}
           </div>
         ) : error ? (
-          <div className="rounded-lg bg-destructive/10 border border-destructive/30 p-6">
-            <h3 className="font-semibold text-destructive mb-2">Unable to Load Flights</h3>
-            <p className="text-sm text-destructive/80 mb-4">{error.message}</p>
-            <Button onClick={refetch} className="bg-destructive hover:bg-destructive/90 text-white">
-              Try Again
-            </Button>
+          <div className="bmf-panel p-8">
+            <h3 className="text-xl font-bold mb-2">Fares didn’t load</h3>
+            <p className="text-white/60 mb-5">{error.message}</p>
+            <button type="button" onClick={refetch} className="bmf-cta">Try again</button>
           </div>
-        ) : specialDeals.length === 0 ? (
-          <div className="rounded-lg border-2 border-dashed border-border p-12 text-center">
-            <p className="text-purple-100/70">No discounted flights available right now. Check back later!</p>
+        ) : sortedDeals.length === 0 ? (
+          <div className="bmf-panel p-8">
+            <p className="text-white/60">No discounted routes right now. New fares drop through the day.</p>
           </div>
         ) : (
-          <div className="relative z-10 grid md:grid-cols-2 lg:grid-cols-3 gap-5 lg:px-36 xl:px-44 2xl:px-52">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {sortedDeals.map((deal, i) => (
               <BoardingPassDealCard
                 key={deal.id}
                 deal={deal}
-                animationDelayMs={i * 60}
+                animationDelayMs={i * 50}
                 onConfirmBooking={handleBookWithAnimation}
                 bookingInProgress={bookingDealId === deal.id}
               />
             ))}
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="section-cinematic-divider section-cinematic-divider-bottom" />
-
-      {/* Features Section */}
-      <section className="bg-[#0a041e]/85 border-t border-purple-300/15">
-        <div className="max-w-7xl mx-auto px-4 py-16">
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center animate-fade-in-up group">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-4 group-hover:scale-110 transition-transform duration-300">
-                <svg className="w-7 h-7 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <h3 className="font-bold text-purple-100 mb-2">Fast Booking</h3>
-              <p className="text-sm text-purple-100/65">No registration. Book in seconds with just your phone number.</p>
+      <section className="border-t border-white/[0.07]">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-16 md:py-20 grid md:grid-cols-3 gap-10">
+          {PROMISES.map((p) => (
+            <div key={p.title}>
+              <h3 className="text-xl font-bold tracking-[-0.02em] mb-2">{p.title}</h3>
+              <p className="text-white/60 leading-relaxed max-w-[38ch]">{p.body}</p>
             </div>
-
-            <div className="text-center animate-fade-in-up animation-delay-100 group">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-4 group-hover:scale-110 transition-transform duration-300">
-                <svg className="w-7 h-7 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 className="font-bold text-purple-100 mb-2">Free Cancellation</h3>
-              <p className="text-sm text-purple-100/65">Full refund if cancelled 10+ days before departure. 50% within 10 days.</p>
-            </div>
-
-            <div className="text-center animate-fade-in-up animation-delay-200 group">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-4 group-hover:scale-110 transition-transform duration-300">
-                <svg className="w-7 h-7 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 className="font-bold text-purple-100 mb-2">Best Prices</h3>
-              <p className="text-sm text-purple-100/65">Up to 30% off with limited-time deals you won&apos;t find elsewhere.</p>
-            </div>
-          </div>
+          ))}
         </div>
       </section>
     </main>

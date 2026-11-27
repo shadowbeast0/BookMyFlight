@@ -38,43 +38,43 @@
 }
 
 .dark {
-  --background: oklch(0.11 0.025 290);
-  --foreground: oklch(0.95 0.01 300);
-  --card: oklch(0.16 0.025 290);
-  --card-foreground: oklch(0.95 0.01 300);
-  --popover: oklch(0.16 0.025 290);
-  --popover-foreground: oklch(0.95 0.01 300);
-  --primary: oklch(0.68 0.22 295);
-  --primary-foreground: oklch(0.11 0.01 290);
-  --secondary: oklch(0.52 0.18 310);
-  --secondary-foreground: oklch(0.95 0.01 300);
-  --muted: oklch(0.24 0.02 290);
-  --muted-foreground: oklch(0.62 0.04 300);
-  --accent: oklch(0.78 0.17 55);
-  --accent-foreground: oklch(0.11 0.01 55);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.88 0 0);
-  --border: oklch(0.26 0.02 290);
-  --input: oklch(0.20 0.02 290);
-  --ring: oklch(0.68 0.22 295);
-  --chart-1: oklch(0.68 0.22 295);
-  --chart-2: oklch(0.58 0.18 310);
-  --chart-3: oklch(0.78 0.16 55);
+  --background: oklch(0.1 0.014 290);
+  --foreground: oklch(0.97 0.005 300);
+  --card: oklch(0.17 0.022 290 / 0.55);
+  --card-foreground: oklch(0.97 0.005 300);
+  --popover: oklch(0.15 0.02 290);
+  --popover-foreground: oklch(0.97 0.005 300);
+  --primary: oklch(0.77 0.155 60);
+  --primary-foreground: oklch(0.2 0.04 50);
+  --secondary: oklch(0.55 0.2 295);
+  --secondary-foreground: oklch(0.97 0.005 300);
+  --muted: oklch(1 0 0 / 0.06);
+  --muted-foreground: oklch(0.75 0.015 290);
+  --accent: oklch(0.88 0.08 70);
+  --accent-foreground: oklch(0.2 0.04 50);
+  --destructive: oklch(0.63 0.21 25);
+  --destructive-foreground: oklch(0.97 0 0);
+  --border: oklch(1 0 0 / 0.1);
+  --input: oklch(1 0 0 / 0.08);
+  --ring: oklch(0.77 0.155 60);
+  --chart-1: oklch(0.77 0.155 60);
+  --chart-2: oklch(0.55 0.2 295);
+  --chart-3: oklch(0.88 0.08 70);
   --chart-4: oklch(0.62 0.2 325);
   --chart-5: oklch(0.68 0.14 270);
-  --sidebar: oklch(0.11 0.025 290);
-  --sidebar-foreground: oklch(0.95 0.01 300);
-  --sidebar-primary: oklch(0.68 0.22 295);
-  --sidebar-primary-foreground: oklch(0.95 0.01 300);
-  --sidebar-accent: oklch(0.78 0.16 55);
-  --sidebar-accent-foreground: oklch(0.11 0.01 55);
-  --sidebar-border: oklch(0.26 0.02 290);
-  --sidebar-ring: oklch(0.68 0.22 295);
+  --sidebar: oklch(0.1 0.014 290);
+  --sidebar-foreground: oklch(0.97 0.005 300);
+  --sidebar-primary: oklch(0.77 0.155 60);
+  --sidebar-primary-foreground: oklch(0.2 0.04 50);
+  --sidebar-accent: oklch(0.88 0.08 70);
+  --sidebar-accent-foreground: oklch(0.2 0.04 50);
+  --sidebar-border: oklch(1 0 0 / 0.1);
+  --sidebar-ring: oklch(0.77 0.155 60);
 }
 
 @theme inline {
   --font-sans: var(--font-space, 'Space Grotesk'), 'Geist', 'Geist Fallback';
-  --font-display: var(--font-orbitron, 'Orbitron'), var(--font-space, 'Space Grotesk');
+  --font-display: var(--font-space, 'Space Grotesk'), system-ui, sans-serif;
   --font-mono: 'Geist Mono', 'Geist Mono Fallback';
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -1038,4 +1038,152 @@
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+
+.cyber-bg,
+.time-theme-morning .cyber-bg,
+.time-theme-day .cyber-bg,
+.time-theme-evening .cyber-bg,
+.time-theme-night .cyber-bg {
+  background:
+    radial-gradient(1100px 520px at 78% -8%, rgba(91, 33, 182, 0.26), transparent 62%),
+    radial-gradient(900px 480px at -10% 30%, rgba(255, 155, 61, 0.07), transparent 60%),
+    #05040b;
+}
+
+.cyber-grid::before,
+.cyber-grid::after {
+  display: none;
+}
+
+.display-font {
+  font-family: var(--font-space), system-ui, sans-serif;
+  letter-spacing: -0.03em;
+}
+
+.neon-title {
+  text-shadow: none;
+  animation: none;
+}
+
+.neon-card,
+[data-slot='card'] {
+  background: rgba(16, 13, 36, 0.55);
+  border-color: rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 24px 60px -36px rgba(0, 0, 0, 0.9);
+}
+
+.neon-card:hover {
+  border-color: rgba(255, 180, 94, 0.35);
+  box-shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.9);
+  transform: none;
+}
+
+.bmf-field {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.bmf-field:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.bmf-field:focus {
+  outline: none;
+  border-color: #ffb45e;
+  background: rgba(255, 180, 94, 0.05);
+}
+
+.bmf-field option {
+  background: #0d0a1f;
+  color: #fff;
+}
+
+.bmf-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.bmf-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 26px;
+  border-radius: 999px;
+  border: 0;
+  background: linear-gradient(180deg, #ffb45e, #ff9b3d);
+  color: #1a0e05;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 10px 30px -12px rgba(255, 155, 61, 0.8);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.bmf-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px -12px rgba(255, 155, 61, 0.9);
+}
+
+.bmf-cta:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.bmf-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.bmf-ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.bmf-cta:focus-visible,
+.bmf-ghost:focus-visible {
+  outline: 2px solid #ffb45e;
+  outline-offset: 3px;
+}
+
+.bmf-panel {
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(14, 11, 32, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.bmf-section-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
 }

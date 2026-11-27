@@ -108,23 +108,18 @@ export function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 backdrop-blur-xl bg-[#0d0625]/92 text-white shadow-2xl border-b border-purple-400/20">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3 cyber-grid">
-          {/* Logo */}
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-[#05040b]/75 text-white border-b border-white/[0.06]">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-3">
           <Link
             href="/"
-            className="group flex items-center gap-3 hover:opacity-95 transition-opacity cursor-pointer"
+            className="group flex items-center gap-3 cursor-pointer"
           >
-            <div className="relative flex items-center justify-center rounded-2xl p-0.5 bg-gradient-to-br from-purple-300/60 via-white/40 to-amber-300/55 shadow-[0_0_22px_rgba(168,85,247,0.35)]">
-              <div className="relative flex items-center justify-center rounded-[14px] h-11 w-11 bg-[#140733] border border-purple-300/35 overflow-hidden">
-                <div className="absolute inset-0 opacity-60 bg-[radial-gradient(circle_at_22%_18%,rgba(250,204,21,0.22),transparent_42%),radial-gradient(circle_at_84%_86%,rgba(192,132,252,0.3),transparent_48%)]" />
-                <FlightMascot size="sm" />
-                <span className="absolute bottom-0.5 right-1 text-[9px] font-black tracking-widest text-amber-200/80">BMF</span>
-              </div>
-            </div>
-            <div>
-              <h1 className="display-font neon-title text-xl md:text-2xl font-black tracking-tight bg-gradient-to-r from-purple-300 via-white to-amber-200 bg-clip-text text-transparent">Book My Flight</h1>
-            </div>
+            <span className="relative flex items-center justify-center h-9 w-9 rounded-xl bg-white/[0.06] border border-white/10 overflow-hidden">
+              <FlightMascot size="sm" />
+            </span>
+            <span className="text-[17px] font-bold tracking-[-0.02em] text-white">
+              Book My Flight
+            </span>
           </Link>
 
           {/* Nav Links */}
@@ -133,10 +128,10 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
+                className={`relative px-4 py-2 text-sm font-medium transition-colors duration-200 cursor-pointer ${
                   pathname === link.href
-                    ? 'bg-purple-500/25 text-white shadow-inner border border-purple-400/30'
-                    : 'text-white/85 hover:text-white hover:bg-purple-500/15'
+                    ? 'text-white after:absolute after:left-1/2 after:-translate-x-1/2 after:bottom-0 after:h-1 after:w-1 after:rounded-full after:bg-[#ffb45e]'
+                    : 'text-white/60 hover:text-white'
                 }`}
               >
                 {link.label}
@@ -168,13 +163,13 @@ export function Navbar() {
                   title="Wallet"
                 >
                   <span className="text-xs text-white/70">Wallet</span>
-                  <span className="text-xs font-bold text-amber-200">Rs {walletBalance.toLocaleString('en-IN')}</span>
+                  <span className="text-xs font-bold text-[#ffd29b]">₹{walletBalance.toLocaleString('en-IN')}</span>
                 </button>
                 <Button
                   onClick={logout}
                   variant="ghost"
                   size="sm"
-                  className="text-white/80 hover:text-white hover:bg-purple-500/15"
+                  className="rounded-full text-white/70 hover:text-white hover:bg-white/10"
                 >
                   Logout
                 </Button>
@@ -182,7 +177,7 @@ export function Navbar() {
             ) : (
               <Button
                 onClick={() => setShowLogin(true)}
-                className="bg-purple-500/25 hover:bg-purple-500/35 text-white border border-purple-300/30 backdrop-blur-sm font-semibold text-sm"
+                className="h-9 rounded-full px-5 bg-white/[0.06] hover:bg-white/[0.12] text-white border border-white/15 font-semibold text-sm"
               >
                 Login
               </Button>
@@ -198,8 +193,8 @@ export function Navbar() {
               href={link.href}
               className={`whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
                 pathname === link.href
-                  ? 'bg-white/20 text-white'
-                  : 'text-white/80 hover:text-white hover:bg-white/10'
+                  ? 'bg-[#ffb45e] text-[#1a0e05]'
+                  : 'text-white/70 hover:text-white bg-white/[0.05]'
               }`}
             >
               {link.label}
@@ -266,7 +261,7 @@ export function Navbar() {
             {phoneError && (
               <p className="text-xs text-destructive">{phoneError}</p>
             )}
-            <Button onClick={codeSent ? handleVerifyCode : handleSendCode} disabled={authBusy} className="w-full font-semibold">
+            <Button onClick={codeSent ? handleVerifyCode : handleSendCode} disabled={authBusy} className="w-full h-11 rounded-full font-semibold">
               {authBusy ? 'Please wait…' : codeSent ? 'Verify and sign in' : 'Send code'}
             </Button>
           </div>
@@ -285,7 +280,7 @@ export function Navbar() {
           <div className="space-y-4 pt-2">
             <div className="rounded-xl bg-primary/5 border border-primary/15 p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Current Balance</p>
-              <p className="text-2xl font-black text-primary">Rs {walletBalance.toLocaleString('en-IN')}</p>
+              <p className="text-2xl font-black text-primary">₹{walletBalance.toLocaleString('en-IN')}</p>
             </div>
             <div>
               <label htmlFor="topup-amount" className="block text-sm font-medium mb-2">
@@ -307,11 +302,11 @@ export function Navbar() {
             <div className="grid grid-cols-3 gap-2">
               {[1000, 2500, 5000].map((quick) => (
                 <Button key={quick} variant="outline" size="sm" onClick={() => setTopUpAmount(String(quick))}>
-                  Rs {quick}
+                  ₹{quick.toLocaleString('en-IN')}
                 </Button>
               ))}
             </div>
-            <Button onClick={handleTopUp} className="w-full font-semibold" disabled={topUpLoading}>
+            <Button onClick={handleTopUp} className="w-full h-11 rounded-full font-semibold" disabled={topUpLoading}>
               {topUpLoading ? 'Adding...' : 'Add From Bank'}
             </Button>
           </div>

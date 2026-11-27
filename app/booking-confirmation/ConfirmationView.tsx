@@ -6,8 +6,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { PageHead } from '@/components/PageHead';
 
 export default function BookingConfirmationPage() {
   const searchParams = useSearchParams();
@@ -15,126 +14,52 @@ export default function BookingConfirmationPage() {
   const bookingId = searchParams.get('id') ?? '';
 
   return (
-    <main className="min-h-screen cyber-bg text-white py-12">
-      <div className="max-w-2xl mx-auto px-4">
-        {/* Success Icon */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/20 border border-green-400/30 mb-4">
-            <svg className="w-8 h-8 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <h1 className="text-4xl font-bold text-white mb-2 display-font neon-title">Booking Confirmed!</h1>
-          <p className="text-lg text-purple-100/75">Your flight has been successfully booked</p>
-        </div>
+    <main className="min-h-screen cyber-bg text-white">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 pt-16 md:pt-24 pb-24">
+        <PageHead kicker="Confirmed" top="You're" bottom="booked." sub="Your seats are locked in and your ticket is ready." />
 
-        {/* Confirmation Card */}
-        <Card className="p-8 mb-8 border-green-400/25 bg-green-500/5 neon-card">
-          <div className="space-y-6">
-            <div>
-              <p className="text-xs text-purple-100/60 uppercase tracking-wide font-semibold mb-1">
-                Booking Reference
-              </p>
-              <p className="text-2xl font-mono font-bold text-white">{bookingId.toUpperCase()}</p>
+        <div className="grid lg:grid-cols-[1.2fr_1fr] gap-4">
+          <section className="bmf-panel p-6 md:p-8">
+            <p className="bmf-section-label">Booking reference</p>
+            <p className="mt-2 text-3xl md:text-4xl font-bold tracking-[0.04em] font-mono text-[#ffd29b] break-all">{bookingId.toUpperCase() || '—'}</p>
+            <ul className="mt-8 grid sm:grid-cols-3 gap-4 text-sm text-white/75">
+              <li className="border-t border-white/10 pt-3">Confirmed instantly</li>
+              <li className="border-t border-white/10 pt-3">E-ticket ready</li>
+              <li className="border-t border-white/10 pt-3">Web check-in opens 24 h before</li>
+            </ul>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <button type="button" className="bmf-cta" onClick={() => router.push('/my-bookings')}>
+                View my trips
+              </button>
+              <button type="button" className="bmf-ghost" onClick={() => router.push('/')}>
+                Browse more fares
+              </button>
+              <button
+                type="button"
+                className="bmf-ghost"
+                onClick={() => {
+                  if (navigator.share) {
+                    navigator.share({
+                      title: 'My Flight Booking',
+                      text: `I just booked my flight! Reference: ${bookingId}`,
+                    });
+                  }
+                }}
+              >
+                Share
+              </button>
             </div>
+          </section>
 
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <p className="text-xs text-purple-100/60 uppercase tracking-wide font-semibold mb-1">
-                  What To Expect
-                </p>
-                <ul className="space-y-2 text-sm text-purple-100/80">
-                  <li className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    Booking confirmed instantly
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    E-ticket generated
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    Ready to web check-in 24hrs before
-                  </li>
-                </ul>
-              </div>
-
-              <div>
-                <p className="text-xs text-purple-100/60 uppercase tracking-wide font-semibold mb-1">
-                  Security
-                </p>
-                <ul className="space-y-2 text-sm text-purple-100/80">
-                  <li className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                    JWT secured booking
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                    Encrypted data transmission
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                    No password required
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Button
-            onClick={() => router.push('/')}
-            className="flex-1 bg-violet-500 hover:bg-violet-400 text-white font-semibold"
-          >
-            Browse More Deals
-          </Button>
-          <Button
-            onClick={() => router.push('/my-bookings')}
-            variant="secondary"
-            className="flex-1 font-semibold"
-          >
-            Manage Booking
-          </Button>
-          <Button
-            onClick={() => {
-              if (navigator.share) {
-                navigator.share({
-                  title: 'My Flight Booking',
-                  text: `I just booked my flight! Reference: ${bookingId}`,
-                });
-              }
-            }}
-            variant="outline"
-            className="flex-1"
-          >
-            Share Booking
-          </Button>
-        </div>
-
-        {/* Info Section */}
-        <div className="mt-12 rounded-lg bg-secondary/10 border border-secondary/20 p-6">
-          <h3 className="font-semibold text-foreground mb-4">Important Information</h3>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>• You can cancel this booking from My Bookings. Refund policy: full refund if cancelled more than 10 days before departure, otherwise 50%.</li>
-            <li>• Web check-in opens 24 hours before your departure.</li>
-            <li>• Carry a valid government-issued photo ID to the airport.</li>
-            <li>• Arrive at least 2 hours before domestic flights.</li>
-            <li>• Save your booking reference for future queries.</li>
-          </ul>
+          <section className="bmf-panel p-6 md:p-8">
+            <h2 className="text-lg font-semibold mb-4">Before you fly</h2>
+            <ul className="space-y-3 text-sm text-white/65">
+              <li>Cancel from My trips any time. Full refund more than 10 days before departure, 50% after that.</li>
+              <li>Carry a valid government photo ID.</li>
+              <li>Reach the airport at least 2 hours before a domestic flight.</li>
+              <li>Keep your booking reference handy for any queries.</li>
+            </ul>
+          </section>
         </div>
       </div>
     </main>

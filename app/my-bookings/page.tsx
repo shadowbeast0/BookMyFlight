@@ -6,6 +6,7 @@ import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { apiClient, Booking } from '@/lib/api';
+import { PageHead } from '@/components/PageHead';
 import {
   Dialog,
   DialogContent,
@@ -71,17 +72,11 @@ export default function MyBookingsPage() {
   if (!isLoggedIn) {
     return (
       <main className="min-h-screen cyber-bg text-white">
-        <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-purple-500/10 mb-6">
-            <svg className="w-10 h-10 text-purple-400/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-              <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-white mb-3">Login Required</h2>
-          <p className="text-purple-100/70 mb-6">Please login to view your bookings.</p>
-          <Button onClick={() => router.push('/')} className="font-semibold bg-violet-500 hover:bg-violet-400 text-white">
-            Go to Home
-          </Button>
+        <div className="max-w-6xl mx-auto px-4 md:px-6 pt-16 md:pt-24 pb-24">
+          <PageHead kicker="My trips" top="Sign in to" bottom="see your trips." sub="Log in with your phone number from the top bar to see and manage your bookings." />
+          <button type="button" className="bmf-ghost" onClick={() => router.push('/search')}>
+            Search flights instead
+          </button>
         </div>
       </main>
     );
@@ -89,25 +84,15 @@ export default function MyBookingsPage() {
 
   return (
     <main className="min-h-screen cyber-bg text-white">
-      {/* Header */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-violet-900/80 via-purple-900/70 to-purple-800/60 py-12 border-b border-purple-400/20">
-        <div className="max-w-4xl mx-auto px-4">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-2 animate-fade-in-up display-font neon-title">
-            My Bookings
-          </h1>
-          <p className="text-purple-100/70 animate-fade-in-up animation-delay-100">
-            Manage your flight reservations
+      <section className="max-w-6xl mx-auto px-4 md:px-6 pt-16 md:pt-24">
+        <PageHead kicker="My trips" top="Your" bottom="bookings." sub="Seats, times and refunds for every flight you have booked.">
+          <p className="mt-6 inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white/70">
+            Wallet <strong className="text-[#ffd29b] tabular-nums">₹{walletBalance.toLocaleString('en-IN')}</strong>
           </p>
-          {isLoggedIn && (
-            <div className="mt-4 inline-flex items-center gap-2 bg-purple-500/15 border border-purple-400/25 rounded-full px-4 py-1.5 text-sm text-white/90">
-              <span>Wallet</span>
-              <strong>Rs {walletBalance.toLocaleString('en-IN')}</strong>
-            </div>
-          )}
-        </div>
+        </PageHead>
       </section>
 
-      <div className="max-w-4xl mx-auto px-4 py-10">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 pb-24">
         {loading ? (
           <div className="space-y-4">
             {[...Array(3)].map((_, i) => (
@@ -126,17 +111,12 @@ export default function MyBookingsPage() {
             </Button>
           </Card>
         ) : bookings.length === 0 ? (
-          <div className="text-center py-16 animate-fade-in-up">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-purple-500/10 mb-6">
-              <svg className="w-10 h-10 text-purple-400/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-3-3v6m-7 4h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-white mb-2">No bookings yet</h3>
-            <p className="text-purple-100/65 mb-6">Start by browsing our latest flight deals.</p>
-            <Button onClick={() => router.push('/search')} className="font-semibold bg-violet-500 hover:bg-violet-400 text-white">
-              Search Flights
-            </Button>
+          <div className="bmf-panel p-8 md:p-10 animate-fade-in-up">
+            <h3 className="text-2xl font-bold tracking-[-0.03em] mb-2">No trips yet</h3>
+            <p className="text-white/60 mb-6">Pick a route and choose your seat inside the cabin.</p>
+            <button type="button" onClick={() => router.push('/search')} className="bmf-cta">
+              Search flights
+            </button>
           </div>
         ) : (
           <div className="space-y-4">
@@ -146,7 +126,7 @@ export default function MyBookingsPage() {
                 <Card
                   key={booking.id}
                   className={`p-6 transition-all duration-300 animate-fade-in-up hover:shadow-md ${
-                    isCancelled ? 'opacity-60 border-destructive/20' : 'border-l-4 border-l-purple-400'
+                    isCancelled ? 'opacity-60 border-destructive/20' : 'hover:border-[#ffb45e]/40'
                   }`}
                   style={{ animationDelay: `${i * 60}ms` }}
                 >
@@ -300,7 +280,7 @@ export default function MyBookingsPage() {
                 <div className="flex justify-between items-center p-3 bg-primary/10 rounded-lg">
                   <span className="font-semibold text-primary">Updated Wallet</span>
                   <span className="text-xl font-bold text-primary">
-                    Rs {cancelResult.walletBalance.toLocaleString('en-IN')}
+                    ₹{cancelResult.walletBalance.toLocaleString('en-IN')}
                   </span>
                 </div>
               )}

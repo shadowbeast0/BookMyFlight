@@ -16,6 +16,14 @@ public final class CurrentUser {
         return auth.getPrincipal().toString();
     }
 
+    public static String phoneOrNull() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getPrincipal() == null || "anonymousUser".equals(auth.getPrincipal())) {
+            return null;
+        }
+        return auth.getPrincipal().toString();
+    }
+
     public static boolean isAdmin() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return auth != null && auth.getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));

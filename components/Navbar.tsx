@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthContext } from '@/contexts/AuthContext';
@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { FlightMascot } from '@/components/FlightMascot';
+import { BrandMark } from '@/components/BrandMark';
 
 export function Navbar() {
   const pathname = usePathname();
@@ -29,6 +29,12 @@ export function Navbar() {
   const [topUpAmount, setTopUpAmount] = useState('');
   const [topUpLoading, setTopUpLoading] = useState(false);
   const [topUpError, setTopUpError] = useState('');
+
+  useEffect(() => {
+    const open = () => setShowLogin(true);
+    window.addEventListener('bmf:open-login', open);
+    return () => window.removeEventListener('bmf:open-login', open);
+  }, []);
 
   const resetLogin = () => {
     setCodeSent(false);
@@ -114,9 +120,7 @@ export function Navbar() {
             href="/"
             className="group flex items-center gap-3 cursor-pointer"
           >
-            <span className="relative flex items-center justify-center h-9 w-9 rounded-xl bg-white/[0.06] border border-white/10 overflow-hidden">
-              <FlightMascot size="sm" />
-            </span>
+            <BrandMark size={36} className="rounded-xl transition-transform duration-300 group-hover:-rotate-6" />
             <span className="text-[17px] font-bold tracking-[-0.02em] text-white">
               Book My Flight
             </span>
@@ -159,10 +163,10 @@ export function Navbar() {
                     setTopUpError('');
                     setShowWalletDialog(true);
                   }}
-                  className="hidden sm:flex items-center gap-2 rounded-full px-3 py-1.5 border border-white/20 bg-white/10 hover:bg-white/20 transition-colors"
+                  className="flex items-center gap-2 rounded-full px-3 py-1.5 border border-white/20 bg-white/10 hover:bg-white/20 transition-colors"
                   title="Wallet"
                 >
-                  <span className="text-xs text-white/70">Wallet</span>
+                  <span className="hidden sm:inline text-xs text-white/70">Wallet</span>
                   <span className="text-xs font-bold text-[#ffd29b]">₹{walletBalance.toLocaleString('en-IN')}</span>
                 </button>
                 <Button

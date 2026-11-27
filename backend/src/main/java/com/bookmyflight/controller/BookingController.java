@@ -70,6 +70,38 @@ public class BookingController {
         return ResponseEntity.ok(facadeService.getOccupiedSeats(dealId, departureTime));
     }
 
+    @GetMapping("/seat-map")
+    public ResponseEntity<java.util.Map<String, Object>> getSeatMap(
+            @RequestParam("dealId") String dealId,
+            @RequestParam(value = "departureTime", required = false) LocalDateTime departureTime) {
+        return ResponseEntity.ok(facadeService.seatMap(dealId, departureTime, CurrentUser.phoneOrNull()));
+    }
+
+    @PutMapping("/holds")
+    public ResponseEntity<java.util.Map<String, Object>> holdSeats(@Valid @RequestBody BookingRequest request) {
+        return ResponseEntity.ok(facadeService.holdSeats(request.getDealId(), request.getSelectedDepartureTime(), CurrentUser.phone(), request.getSelectedSeats()));
+    }
+
+    @DeleteMapping("/holds")
+    public ResponseEntity<java.util.Map<String, Object>> releaseHolds(
+            @RequestParam("dealId") String dealId,
+            @RequestParam(value = "departureTime", required = false) LocalDateTime departureTime) {
+        return ResponseEntity.ok(facadeService.holdSeats(dealId, departureTime, CurrentUser.phone(), List.of()));
+    }
+
+    @PostMapping("/itinerary")
+    public ResponseEntity<List<BookingResponse>> createItinerary(@Valid @RequestBody com.bookmyflight.dto.ItineraryRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(facadeService.createItinerary(request, CurrentUser.phone()));
+    }
+
+    @GetMapping("/summary")
+    public ResponseEntity<java.util.Map<String, java.util.Map<String, Object>>> getSummary() {
+        if (!CurrentUser.isAdmin()) {
+            throw new org.springframework.security.access.AccessDeniedException("Admins only");
+        }
+        return ResponseEntity.ok(facadeService.summary());
+    }
+
     /**
      * PUT /api/bookings/{id}/cancel - Cancel a booking with refund.
      */

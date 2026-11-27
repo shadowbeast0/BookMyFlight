@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { apiClient, FlightDeal } from '@/lib/api';
+import { apiClient, DealSummary, FlightDeal } from '@/lib/api';
+import { ALL_SEATS } from '@/lib/cabin';
+import { clockLabel } from '@/lib/schedule';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { PageHead } from '@/components/PageHead';
@@ -17,6 +19,7 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [summary, setSummary] = useState<Record<string, DealSummary>>({});
   
   const [formData, setFormData] = useState<Partial<FlightDeal>>({
     departureCity: '',
@@ -35,8 +38,9 @@ export default function AdminPage() {
       try {
         setLoading(true);
         setError(null);
-        const data = await apiClient.getAllDeals();
+        const [data, stats] = await Promise.all([apiClient.getAllDeals(), apiClient.getDealSummary().catch(() => ({}))]);
         setDeals(data);
+        setSummary(stats);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load deals');
       } finally {
@@ -92,7 +96,12 @@ export default function AdminPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this deal?')) {
+    const active = summary[id]?.bookings ?? 0;
+    if (active > 0) {
+      setError(`This flight has ${active} active booking${active > 1 ? 's' : ''}. Turn it off with Edit instead of deleting it.`);
+      return;
+    }
+    if (!confirm('Delete this flight? This cannot be undone.')) {
       return;
     }
 
@@ -315,6 +324,20 @@ export default function AdminPage() {
           </Card>
         )}
 
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          {[
+            ['Revenue', `₹${Math.round(Object.values(summary).reduce((s, r) => s + r.revenue, 0)).toLocaleString('en-IN')}`],
+            ['Seats sold', Object.values(summary).reduce((s, r) => s + r.seatsSold, 0).toLocaleString('en-IN')],
+            ['Bookings', Object.values(summary).reduce((s, r) => s + r.bookings, 0).toLocaleString('en-IN')],
+            ['Flights on sale', deals.filter((d) => d.isActive).length.toString()],
+          ].map(([label, value]) => (
+            <div key={label} className="bmf-panel p-5">
+              <p className="bmf-section-label">{label}</p>
+              <p className="mt-1 text-3xl font-bold tracking-[-0.04em] tabular-nums">{value}</p>
+            </div>
+          ))}
+        </div>
+
         {/* Deals Table */}
         <Card>
           {loading ? (
@@ -343,7 +366,16 @@ export default function AdminPage() {
                       Duration
                     </th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
-                      Expires
+                      Departs daily
+                    </th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                      On sale until
+                    </th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                      Sold
+                    </th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                      Revenue
                     </th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
                       Status
@@ -374,8 +406,19 @@ export default function AdminPage() {
                           {deal.durationMinutes ? `${Math.floor(deal.durationMinutes / 60)}h ${deal.durationMinutes % 60}m` : '—'}
                         </span>
                       </td>
+                      <td className="px-6 py-3 text-sm tabular-nums text-muted-foreground">
+                        {deal.departureDate ? clockLabel(deal) : '—'}
+                      </td>
                       <td className="px-6 py-3 text-sm text-muted-foreground">
-                        {new Date(deal.expiresAt).toLocaleDateString()}
+                        {new Date(deal.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </td>
+                      <td className="px-6 py-3 text-sm tabular-nums text-muted-foreground">
+                        {summary[deal.id]?.seatsSold ?? 0}
+                        <span className="text-white/35"> seats, {ALL_SEATS.length} per flight</span>
+                        {summary[deal.id]?.cancelled ? <span className="block text-xs text-white/40">{summary[deal.id].cancelled} cancelled</span> : null}
+                      </td>
+                      <td className="px-6 py-3 text-sm tabular-nums">
+                        ₹{Math.round(summary[deal.id]?.revenue ?? 0).toLocaleString('en-IN')}
                       </td>
                       <td className="px-6 py-3">
                         <span

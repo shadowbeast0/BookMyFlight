@@ -64,9 +64,29 @@ public class FlightDealService {
         return toResponse(deal, strategy);
     }
 
+    @Autowired
+    private com.bookmyflight.repository.BookingRepository bookingRepository;
+
     /** Create a new deal - Builder Pattern used here. */
+    private void validate(DealRequest request) {
+        if (request.getDepartureCity() != null && request.getDepartureCity().trim().equalsIgnoreCase(request.getArrivalCity() == null ? "" : request.getArrivalCity().trim())) {
+            throw new RuntimeException("Departure and arrival must be different cities");
+        }
+        double discount = request.getDiscount() != null ? request.getDiscount() : 0.0;
+        if (discount < 0 || discount > 90) {
+            throw new RuntimeException("Discount must be between 0 and 90%");
+        }
+        if (request.getDurationMinutes() != null && (request.getDurationMinutes() < 20 || request.getDurationMinutes() > 1200)) {
+            throw new RuntimeException("Flight time must be between 20 minutes and 20 hours");
+        }
+        if (request.getDepartureDate() != null && request.getExpiresAt() != null && request.getExpiresAt().isBefore(request.getDepartureDate())) {
+            throw new RuntimeException("Sale end must be on or after the first departure");
+        }
+    }
+
     @Transactional
     public DealResponse createDeal(DealRequest request) {
+        validate(request);
         FlightDeal deal = FlightDeal.builder()
                 .departureCity(request.getDepartureCity())
                 .arrivalCity(request.getArrivalCity())
@@ -85,6 +105,7 @@ public class FlightDealService {
     /** Update an existing deal. */
     @Transactional
     public DealResponse updateDeal(String id, DealRequest request) {
+        validate(request);
         FlightDeal deal = dealRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Deal not found: " + id));
 
@@ -106,6 +127,10 @@ public class FlightDealService {
     public void deleteDeal(String id) {
         if (!dealRepository.existsById(id)) {
             throw new RuntimeException("Deal not found: " + id);
+        }
+        long live = bookingRepository.findByDealIdAndStatus(id, "confirmed").size();
+        if (live > 0) {
+            throw new RuntimeException("This flight has " + live + " active booking" + (live > 1 ? "s" : "") + ". Turn it off instead of deleting it.");
         }
         dealRepository.deleteById(id);
     }
@@ -134,13 +159,21 @@ public class FlightDealService {
     }
 
     /** Search deals by from/to cities. */
-    public List<DealResponse> searchDeals(String from, String to) {
+    public List<DealResponse> searchDeals(String from, String to, java.time.LocalDate date) {
         DiscountStrategy strategy = strategyContext.getDefaultStrategy();
+        LocalDateTime now = LocalDateTime.now();
         List<FlightDeal> deals = dealRepository
                 .findByIsActiveTrueAndExpiresAtAfterAndDepartureCityIgnoreCaseAndArrivalCityIgnoreCase(
-                        LocalDateTime.now(), from, to);
+                        now, from, to);
         return deals.stream()
-                .map(deal -> toResponse(deal, strategy))
+                .filter(deal -> date == null || FlightSchedule.runsOn(deal, date, now))
+                .map(deal -> {
+                    DealResponse r = toResponse(deal, strategy);
+                    if (date != null) {
+                        r.setDepartureDate(FlightSchedule.departureOn(deal, date).toString());
+                    }
+                    return r;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -148,7 +181,7 @@ public class FlightDealService {
      * Find connecting flights (1-stop) when no direct route exists.
      * Returns a list of pairs: each pair is [leg1, leg2].
      */
-    public List<List<DealResponse>> findConnectingFlights(String from, String to) {
+    public List<List<DealResponse>> findConnectingFlights(String from, String to, java.time.LocalDate date) {
         DiscountStrategy strategy = strategyContext.getDefaultStrategy();
         LocalDateTime now = LocalDateTime.now();
 
@@ -167,13 +200,22 @@ public class FlightDealService {
                     .findByIsActiveTrueAndExpiresAtAfterAndDepartureCityIgnoreCaseAndArrivalCityIgnoreCase(
                             now, intermediate, to);
 
+            java.time.LocalDate leg1Date = date != null ? date : leg1.getDepartureDate().toLocalDate();
+            if (!FlightSchedule.runsOn(leg1, leg1Date, now)) {
+                continue;
+            }
             for (FlightDeal leg2 : leg2Routes) {
-                if (!isValidConnection(leg1, leg2)) {
+                LocalDateTime dep2 = FlightSchedule.connectingDeparture(leg1, leg1Date, leg2, now);
+                if (dep2 == null) {
                     continue;
                 }
+                DealResponse first = toResponse(leg1, strategy);
+                first.setDepartureDate(FlightSchedule.departureOn(leg1, leg1Date).toString());
+                DealResponse second = toResponse(leg2, strategy);
+                second.setDepartureDate(dep2.toString());
                 List<DealResponse> pair = new ArrayList<>();
-                pair.add(toResponse(leg1, strategy));
-                pair.add(toResponse(leg2, strategy));
+                pair.add(first);
+                pair.add(second);
                 connections.add(pair);
             }
         }

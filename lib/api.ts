@@ -43,6 +43,26 @@ export interface Booking {
   walletBalance?: number;
 }
 
+export interface SeatMap {
+  booked: string[];
+  held: string[];
+  mine: string[];
+  holdExpiresAt: string | null;
+}
+
+export interface ItineraryLeg {
+  dealId: string;
+  selectedDepartureTime: string;
+  selectedSeats: string[];
+}
+
+export interface DealSummary {
+  bookings: number;
+  seatsSold: number;
+  revenue: number;
+  cancelled: number;
+}
+
 export interface Wallet {
   phoneNumber: string;
   balance: number;
@@ -206,12 +226,39 @@ class APIClient {
   }
 
   // ===== Search & Connecting Flights =====
-  async searchFlights(from: string, to: string): Promise<FlightDeal[]> {
-    return this.request<FlightDeal[]>(`/deals/search?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+  async searchFlights(from: string, to: string, date?: string): Promise<FlightDeal[]> {
+    const params = new URLSearchParams({ from, to });
+    if (date) params.set('date', date);
+    return this.request<FlightDeal[]>(`/deals/search?${params.toString()}`);
   }
 
-  async getConnectingFlights(from: string, to: string): Promise<FlightDeal[][]> {
-    return this.request<FlightDeal[][]>(`/deals/connecting?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+  async getConnectingFlights(from: string, to: string, date?: string): Promise<FlightDeal[][]> {
+    const params = new URLSearchParams({ from, to });
+    if (date) params.set('date', date);
+    return this.request<FlightDeal[][]>(`/deals/connecting?${params.toString()}`);
+  }
+
+  async getSeatMap(dealId: string, departureTime: string): Promise<SeatMap> {
+    const params = new URLSearchParams({ dealId, departureTime });
+    return this.request<SeatMap>(`/bookings/seat-map?${params.toString()}`);
+  }
+
+  async holdSeats(dealId: string, departureTime: string, seats: string[]): Promise<SeatMap> {
+    return this.request<SeatMap>('/bookings/holds', {
+      method: 'PUT',
+      body: JSON.stringify({ dealId, selectedDepartureTime: departureTime, selectedSeats: seats }),
+    });
+  }
+
+  async bookItinerary(legs: ItineraryLeg[], passengerName: string, passengerCount: number): Promise<Booking[]> {
+    return this.request<Booking[]>('/bookings/itinerary', {
+      method: 'POST',
+      body: JSON.stringify({ legs, passengerName, passengerCount }),
+    });
+  }
+
+  async getDealSummary(): Promise<Record<string, DealSummary>> {
+    return this.request<Record<string, DealSummary>>('/bookings/summary');
   }
 
   async getCities(): Promise<string[]> {

@@ -36,7 +36,7 @@ public class SecurityConfig {
                                 response.sendError(HttpServletResponse.SC_FORBIDDEN, "Admins only")))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/send-otp", "/api/auth/verify-otp").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/bookings/occupied-seats").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/bookings/occupied-seats", "/api/bookings/seat-map").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/deals/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/deals", "/api/deals/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/deals/**").hasRole("ADMIN")

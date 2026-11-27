@@ -26,6 +26,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 
+    @ExceptionHandler(com.bookmyflight.service.SeatHoldService.SeatTakenException.class)
+    public ResponseEntity<Map<String, Object>> handleSeatTaken(com.bookmyflight.service.SeatHoldService.SeatTakenException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", ex.getMessage());
+        body.put("status", HttpStatus.CONFLICT.value());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException ex) {
         Map<String, Object> body = new HashMap<>();

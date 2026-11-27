@@ -5,14 +5,15 @@
 
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { DealCountdown } from '@/components/DealCountdown';
-import { CabinSeatMap } from '@/components/CabinSeatMap';
+import { CabinSeatMap, LegTab } from '@/components/CabinSeatMap';
 import { PageHead } from '@/components/PageHead';
-import { ALL_SEATS, cabinClassOf, seatsTotal } from '@/lib/cabin';
-import { apiClient, FlightDeal, Booking } from '@/lib/api';
+import { cabinClassOf, EXIT_ROWS, fareBreakdown, isValidSeat } from '@/lib/cabin';
+import { arrivalOf, clockLabel, clockOf, connectionFor, dateKey, departureOn, durationLabel, serviceWindow } from '@/lib/schedule';
+import { apiClient, FlightDeal, Booking, SeatMap } from '@/lib/api';
 import { useAuthContext } from '@/contexts/AuthContext';
 import {
   Dialog,
@@ -22,169 +23,194 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 
+const EMPTY_MAP: SeatMap = { booked: [], held: [], mine: [], holdExpiresAt: null };
+
+const gateFor = (id: string) => {
+  let h = 0;
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return `${'ABCD'[h % 4]}${(h % 23) + 1}`;
+};
+
+const longDate = (iso: string) =>
+  new Date(iso).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+const shortDay = (key: string) => {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+};
+
+const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+
 export default function BookingPage() {
-    const { isLoggedIn, phoneNumber: loggedPhone, walletBalance, refreshWallet } = useAuthContext();
+  const { isLoggedIn, walletBalance, refreshWallet } = useAuthContext();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const dealId = searchParams.get('id') ?? '';
+  const idKey = `${searchParams.get('id') ?? ''}|${searchParams.get('next') ?? ''}`;
+  const requestedDate = searchParams.get('date');
 
-  const [deal, setDeal] = useState<FlightDeal | null>(null);
+  const [deals, setDeals] = useState<FlightDeal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [passengerName, setPassengerName] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [departureDate, setDepartureDate] = useState('');
-  const [departureTime, setDepartureTime] = useState('');
+  const [date, setDate] = useState('');
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
-  const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
-  const [occupiedSeatIds, setOccupiedSeatIds] = useState<string[]>([]);
-  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [names, setNames] = useState<string[]>(['']);
+  const [active, setActive] = useState(0);
+  const [selections, setSelections] = useState<string[][]>([[], []]);
+  const [maps, setMaps] = useState<SeatMap[]>([EMPTY_MAP, EMPTY_MAP]);
+  const [notice, setNotice] = useState<string | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
-  const [booking, setBooking] = useState<Booking | null>(null);
-  const [showReceipt, setShowReceipt] = useState(false);
+  const [booked, setBooked] = useState<Booking[] | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const holdTimer = useRef<number | null>(null);
 
-  // Load deal details
   useEffect(() => {
-    const loadDeal = async () => {
+    let cancelled = false;
+    const ids = idKey.split('|').filter(Boolean);
+    const load = async () => {
       try {
         setLoading(true);
         setError(null);
-        const dealData = await apiClient.getDealById(dealId);
-        setDeal(dealData);
-        // Pre-fill departure date from deal if available
-        if (dealData.departureDate) {
-          const d = new Date(dealData.departureDate);
-          setDepartureDate(d.toISOString().slice(0, 10));
-          setDepartureTime(d.toTimeString().slice(0, 5));
-        }
+        const list = await Promise.all(ids.map((id) => apiClient.getDealById(id)));
+        if (cancelled) return;
+        setDeals(list);
+        const w = serviceWindow(list[0]);
+        const wanted = requestedDate && requestedDate >= w.first && requestedDate <= w.last ? requestedDate : w.first;
+        setDate(wanted);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load deal');
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load this flight');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
-    if (dealId) loadDeal();
-  }, [dealId]);
-
-  useEffect(() => {
-    if (isLoggedIn && loggedPhone) {
-      setPhoneNumber(loggedPhone);
+    if (ids.length) load();
+    else {
+      setLoading(false);
+      setError('No flight was chosen.');
     }
-  }, [isLoggedIn, loggedPhone]);
-
-  const formatDuration = (mins?: number) => {
-    if (!mins) return '';
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return h > 0 ? `${h}h ${m}m` : `${m}m`;
-  };
-
-  const arrivalTime = useMemo(() => {
-    if (!departureDate || !departureTime || !deal?.durationMinutes) return null;
-    const dep = new Date(`${departureDate}T${departureTime}`);
-    if (isNaN(dep.getTime())) return null;
-    const arr = new Date(dep.getTime() + deal.durationMinutes * 60000);
-    return arr;
-  }, [departureDate, departureTime, deal?.durationMinutes]);
-
-  const totalSeatCapacity = ALL_SEATS.length;
-
-  const occupiedSeats = useMemo(() => new Set(occupiedSeatIds), [occupiedSeatIds]);
-
-  useEffect(() => {
-    const loadOccupiedSeats = async () => {
-      if (!deal) return;
-
-      let selectedDepartureTime: string | undefined;
-      if (departureDate && departureTime) {
-        selectedDepartureTime = `${departureDate}T${departureTime}:00`;
-      }
-
-      try {
-        const seats = await apiClient.getOccupiedSeats(deal.id, selectedDepartureTime);
-        setOccupiedSeatIds(seats.map((seat) => seat.toUpperCase()));
-      } catch {
-        // Keep UI functional if occupied-seat API is temporarily unavailable.
-        setOccupiedSeatIds([]);
-      }
+    return () => {
+      cancelled = true;
     };
+  }, [idKey, requestedDate]);
 
-    loadOccupiedSeats();
-  }, [deal, departureDate, departureTime]);
-
-  useEffect(() => {
-    setSelectedSeats((prev) => prev.filter((seat) => !occupiedSeats.has(seat)));
-  }, [occupiedSeats]);
-
-  const availableSeatCount = totalSeatCapacity - occupiedSeats.size;
   const passengerCount = adults + children;
 
   useEffect(() => {
-    setSelectedSeats((prev) => (prev.length > passengerCount ? prev.slice(prev.length - passengerCount) : prev));
+    setNames((prev) => Array.from({ length: passengerCount }, (_, i) => prev[i] ?? ''));
+    setSelections((prev) => prev.map((s) => (s.length > passengerCount ? s.slice(s.length - passengerCount) : s)));
   }, [passengerCount]);
 
-  const handleBooking = async () => {
-    setPhoneError(null);
+  const slots = useMemo(() => {
+    if (!deals.length || !date) return [] as string[];
+    const first = departureOn(deals[0], date);
+    if (deals.length === 1) return [first];
+    const link = connectionFor(deals[0], date, deals[1]);
+    return link ? [first, link.dep2] : [first];
+  }, [deals, date]);
+  const slotKey = slots.join('|');
+
+  const connectionBroken = deals.length === 2 && slots.length < 2;
+
+  const refreshMaps = useCallback(async () => {
+    if (!slots.length) return;
+    const next = await Promise.all(slots.map((slot, i) => apiClient.getSeatMap(deals[i].id, slot).catch(() => EMPTY_MAP)));
+    setMaps((prev) => prev.map((m, i) => next[i] ?? m));
+  }, [slotKey, deals]);
+
+  useEffect(() => {
+    setSelections([[], []]);
+    refreshMaps();
+  }, [slotKey]);
+
+  useEffect(() => {
+    const id = window.setInterval(refreshMaps, 15000);
+    const onStorage = () => refreshMaps();
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, [refreshMaps]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!isLoggedIn || !slots.length) return;
+    if (holdTimer.current) window.clearTimeout(holdTimer.current);
+    holdTimer.current = window.setTimeout(async () => {
+      for (let i = 0; i < slots.length; i++) {
+        const seats = selections[i] ?? [];
+        const map = maps[i] ?? EMPTY_MAP;
+        if (seats.length === map.mine.length && seats.every((s) => map.mine.includes(s))) continue;
+        try {
+          const next = await apiClient.holdSeats(deals[i].id, slots[i], seats);
+          setMaps((prev) => prev.map((m, j) => (j === i ? next : m)));
+        } catch (err) {
+          setNotice(err instanceof Error ? err.message : 'Could not hold those seats');
+          const fresh = await apiClient.getSeatMap(deals[i].id, slots[i]).catch(() => EMPTY_MAP);
+          const gone = new Set([...fresh.booked, ...fresh.held]);
+          setSelections((prev) => prev.map((s, j) => (j === i ? s.filter((x) => !gone.has(x)) : s)));
+          setMaps((prev) => prev.map((m, j) => (j === i ? fresh : m)));
+        }
+      }
+    }, 350);
+    return () => {
+      if (holdTimer.current) window.clearTimeout(holdTimer.current);
+    };
+  }, [selections, isLoggedIn, slotKey]);
+
+  const holdEndsAt = useMemo(() => {
+    const times = maps
+      .slice(0, slots.length)
+      .map((m) => m.holdExpiresAt)
+      .filter((t): t is string => !!t)
+      .map((t) => new Date(t).getTime());
+    return times.length ? Math.min(...times) : null;
+  }, [maps, slots.length]);
+
+  useEffect(() => {
+    if (holdEndsAt && now >= holdEndsAt) {
+      setSelections([[], []]);
+      setMaps((prev) => prev.map((m) => ({ ...m, mine: [], holdExpiresAt: null })));
+      setNotice('Your 10-minute seat hold ended and the seats were released. Pick them again to continue.');
+      refreshMaps();
+    }
+  }, [now, holdEndsAt, refreshMaps]);
+
+  const toggleSeat = (seatId: string) => {
+    const seat = seatId.toUpperCase();
+    if (!isValidSeat(seat)) return;
+    const map = maps[active] ?? EMPTY_MAP;
+    if (map.booked.includes(seat) || map.held.includes(seat)) return;
     setBookingError(null);
-    if (!phoneNumber.match(/^\+91\d{10}$/)) {
-      setPhoneError('Enter a valid Indian phone number (e.g. +919876543210)');
-      return;
+    setNotice(null);
+    const cur = selections[active] ?? [];
+    let next: string[];
+    if (cur.includes(seat)) next = cur.filter((s) => s !== seat);
+    else {
+      next = cur.length >= passengerCount ? [...cur.slice(1), seat] : [...cur, seat];
+      const exit = next.filter((s) => EXIT_ROWS.includes(Number(s.slice(0, -1)))).length;
+      if (exit > adults) {
+        setNotice('Exit-row seats can only go to adults who can help in an evacuation.');
+        return;
+      }
     }
-    if (!deal) return;
-
-    if (passengerCount <= 0) {
-      setBookingError('Please select at least one passenger.');
-      return;
-    }
-
-    if (passengerCount > availableSeatCount) {
-      setBookingError('Passenger count exceeds remaining available seats.');
-      return;
-    }
-
-    if (selectedSeats.length !== passengerCount) {
-      setBookingError(`Please select exactly ${passengerCount} seat(s).`);
-      return;
-    }
-
-    let selectedDepartureTime: string | undefined;
-    if (departureDate && departureTime) {
-      selectedDepartureTime = `${departureDate}T${departureTime}:00`;
-    }
-
-    try {
-      setBookingLoading(true);
-      const passengerTag = `A${adults}-C${children}`;
-      const combinedName = [passengerName.trim(), passengerTag].filter(Boolean).join(' ');
-      const result = await apiClient.createBooking(
-        deal.id,
-        phoneNumber,
-        combinedName || undefined,
-        selectedDepartureTime,
-        selectedSeats,
-        passengerCount
-      );
-      setBooking(result);
-      await refreshWallet();
-      setShowReceipt(true);
-    } catch (err) {
-      setBookingError(err instanceof Error ? err.message : 'Booking failed. Please try again.');
-    } finally {
-      setBookingLoading(false);
-    }
+    setSelections((prev) => prev.map((s, i) => (i === active ? next : s)));
   };
 
   if (loading) {
     return (
       <main className="min-h-screen cyber-bg text-white grid place-items-center">
-        <p className="text-white/60 animate-pulse">Opening the cabin…</p>
+        <p className="text-white/60 animate-pulse">Taxiing to the gate…</p>
       </main>
     );
   }
 
-  if (error || !deal) {
+  if (error || !deals.length) {
     return (
       <main className="min-h-screen cyber-bg text-white">
         <div className="max-w-6xl mx-auto px-4 md:px-6 pt-16 md:pt-24 pb-24">
@@ -197,42 +223,87 @@ export default function BookingPage() {
     );
   }
 
-  const unitPrice = deal.cost;
-  const originalPrice = deal.discount ? Math.round(deal.cost / (1 - deal.discount / 100)) : deal.cost;
-  const unseated = Math.max(0, passengerCount - selectedSeats.length);
-  const totalPrice = Math.round((seatsTotal(unitPrice, selectedSeats) + unitPrice * unseated) * 100) / 100;
-  const totalOriginalPrice = Math.round((seatsTotal(originalPrice, selectedSeats) + originalPrice * unseated) * 100) / 100;
-  const seatClassSummary = Object.entries(
-    selectedSeats.reduce<Record<string, number>>((acc, s) => {
-      const name = cabinClassOf(s)?.name ?? 'Economy';
-      acc[name] = (acc[name] ?? 0) + 1;
-      return acc;
-    }, {})
-  )
-    .map(([name, n]) => `${n}× ${name}`)
-    .join(', ');
+  const deal = deals[active] ?? deals[0];
+  const window0 = serviceWindow(deals[0]);
+  const legBreakdowns = deals.map((d, i) => fareBreakdown(d.cost, selections[i] ?? []));
+  const unseated = deals.map((d, i) => Math.max(0, passengerCount - (selections[i]?.length ?? 0)) * Math.round(d.cost));
+  const fares = legBreakdowns.reduce((s, b) => s + b.fares, 0) + unseated.reduce((a, b) => a + b, 0);
+  const fees = legBreakdowns.reduce((s, b) => s + b.fees, 0);
+  const total = fares + fees;
+  const originalTotal =
+    deals.reduce((s, d, i) => {
+      const ratio = d.discount ? 1 / (1 - d.discount / 100) : 1;
+      return s + (legBreakdowns[i].fares + unseated[i]) * ratio;
+    }, 0) + fees;
+  const allPicked = deals.every((_, i) => (selections[i]?.length ?? 0) === passengerCount);
+  const namesOk = names.every((n) => n.trim().length >= 2);
+  const activeSlot = slots[active];
+  const midHour = activeSlot ? new Date(activeSlot).getHours() + new Date(activeSlot).getMinutes() / 60 + (deal.durationMinutes ?? 0) / 120 : 18;
+  const legTabs: LegTab[] = deals.map((d, i) => ({
+    label: `${d.departureCity} → ${d.arrivalCity}`,
+    sub: slots[i] ? `${clockOf(slots[i])}, ${selections[i]?.length ?? 0} of ${passengerCount} seats` : 'No connection',
+  }));
+  const holdLeft = holdEndsAt ? Math.max(0, holdEndsAt - now) : 0;
+  const holdLabel = `${Math.floor(holdLeft / 60000)}:${String(Math.floor((holdLeft % 60000) / 1000)).padStart(2, '0')}`;
+  const kicker =
+    deals.length > 1
+      ? `${deals[0].departureCity} to ${deals[1].arrivalCity} via ${deals[0].arrivalCity}`
+      : `${deal.departureCity} to ${deal.arrivalCity}${slots[0] ? `, ${longDate(slots[0])}` : ''}`;
 
-  const toggleSeat = (seatId: string) => {
-    if (occupiedSeats.has(seatId)) return;
+  const handleBooking = async () => {
     setBookingError(null);
-    setSelectedSeats((prev) => {
-      if (prev.includes(seatId)) {
-        return prev.filter((id) => id !== seatId);
-      }
-      if (prev.length >= passengerCount) {
-        return [...prev.slice(1), seatId];
-      }
-      return [...prev, seatId];
-    });
+    if (!isLoggedIn) {
+      window.dispatchEvent(new Event('bmf:open-login'));
+      return;
+    }
+    if (connectionBroken) {
+      setBookingError('These flights no longer connect on this date. Pick another date.');
+      return;
+    }
+    if (!namesOk) {
+      setBookingError('Add each passenger’s name as it appears on their ID.');
+      return;
+    }
+    const missing = deals.findIndex((_, i) => (selections[i]?.length ?? 0) !== passengerCount);
+    if (missing >= 0) {
+      setActive(missing);
+      setBookingError(`Pick ${passengerCount} seat${passengerCount > 1 ? 's' : ''} on ${deals[missing].departureCity} to ${deals[missing].arrivalCity}.`);
+      return;
+    }
+    try {
+      setBookingLoading(true);
+      const label = names.map((n, i) => `${n.trim()}${i >= adults ? ' (child)' : ''}`).join(', ');
+      const result = await apiClient.bookItinerary(
+        deals.map((d, i) => ({ dealId: d.id, selectedDepartureTime: slots[i], selectedSeats: selections[i] })),
+        `${label} A${adults}-C${children}`,
+        passengerCount
+      );
+      setBooked(result);
+      setSelections([[], []]);
+      await refreshWallet();
+      refreshMaps();
+    } catch (err) {
+      setBookingError(err instanceof Error ? err.message : 'Booking failed. Please try again.');
+      refreshMaps();
+    } finally {
+      setBookingLoading(false);
+    }
   };
 
   return (
     <main className="min-h-screen cyber-bg text-white">
       <CabinSeatMap
-        route={`${deal.departureCity.split(',')[0]} to ${deal.arrivalCity.split(',')[0]}`}
-        unitPrice={unitPrice}
-        occupied={occupiedSeatIds}
-        selected={selectedSeats}
+        kicker={kicker}
+        legs={legTabs}
+        activeLeg={active}
+        onLeg={setActive}
+        hour={midHour}
+        gate={gateFor(deals[0].id)}
+        intro
+        unitPrice={deal.cost}
+        booked={maps[active]?.booked ?? []}
+        held={maps[active]?.held ?? []}
+        selected={selections[active] ?? []}
         passengerCount={passengerCount}
         adults={adults}
         kids={children}
@@ -241,93 +312,130 @@ export default function BookingPage() {
         onToggle={toggleSeat}
       >
         <div className="space-y-6">
-          <div>
-            <p className="text-xs text-white/50 mb-2">Your flight</p>
-            <div className="flex items-center gap-3">
-              <p className="text-2xl font-bold tracking-[-0.03em] truncate">{deal.departureCity.split(',')[0]}</p>
-              <span className="flex-1 min-w-6 flex items-center gap-1.5 text-[#ffb45e]">
-                <span className="h-px flex-1 bg-white/20" />
-                <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
-                </svg>
-                <span className="h-px flex-1 bg-white/20" />
-              </span>
-              <p className="text-2xl font-bold tracking-[-0.03em] truncate text-right">{deal.arrivalCity.split(',')[0]}</p>
-            </div>
-            <p className="mt-1 text-sm text-white/55">
-              {deal.durationMinutes ? `${formatDuration(deal.durationMinutes)} non-stop` : 'Non-stop'}
-              {arrivalTime && `, lands ${arrivalTime.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
-            </p>
-            <div className="mt-4 pt-4 border-t border-white/10">
-              <DealCountdown expiresAt={deal.expiresAt} />
+          <div className="space-y-4">
+            {deals.map((d, i) => (
+              <div key={d.id} className={deals.length > 1 ? 'rounded-2xl border border-white/10 p-3' : ''}>
+                {deals.length > 1 && <p className="text-xs text-white/50 mb-1">Flight {i + 1}</p>}
+                <div className="flex items-center gap-3">
+                  <div className="min-w-0">
+                    <p className="text-2xl font-bold tracking-[-0.03em] tabular-nums">{slots[i] ? clockOf(slots[i]) : clockLabel(d)}</p>
+                    <p className="text-sm text-white/60 truncate">{d.departureCity}</p>
+                  </div>
+                  <span className="flex-1 min-w-6 flex flex-col items-center text-[11px] text-white/45">
+                    <span className="w-full flex items-center gap-1.5 text-[#ffb45e]">
+                      <span className="h-px flex-1 bg-white/20" />
+                      <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
+                      </svg>
+                      <span className="h-px flex-1 bg-white/20" />
+                    </span>
+                    {durationLabel(d.durationMinutes)}
+                  </span>
+                  <div className="min-w-0 text-right">
+                    <p className="text-2xl font-bold tracking-[-0.03em] tabular-nums">{slots[i] ? clockOf(arrivalOf(d, slots[i]).toISOString()) : '--:--'}</p>
+                    <p className="text-sm text-white/60 truncate">{d.arrivalCity}</p>
+                  </div>
+                </div>
+                {i === 0 && deals.length > 1 && slots[1] && (
+                  <p className="mt-2 text-xs text-white/55">
+                    {durationLabel((new Date(slots[1]).getTime() - arrivalOf(d, slots[0]).getTime()) / 60000)} change in {d.arrivalCity}
+                    {dateKey(new Date(slots[1])) !== date ? ', onward flight is the next day' : ''}
+                  </p>
+                )}
+              </div>
+            ))}
+            {connectionBroken && (
+              <p className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">The second flight doesn’t connect on this date. Try another day.</p>
+            )}
+            <div className="pt-3 border-t border-white/10">
+              <DealCountdown expiresAt={deals[0].expiresAt} />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="bmf-label">Departure date</span>
-              <input id="depDate" type="date" value={departureDate} onChange={(e) => setDepartureDate(e.target.value)} className="bmf-field [color-scheme:dark]" />
-            </label>
-            <label className="block">
-              <span className="bmf-label">Time</span>
-              <input id="depTime" type="time" value={departureTime} onChange={(e) => setDepartureTime(e.target.value)} className="bmf-field [color-scheme:dark]" />
-            </label>
-          </div>
+          <label className="block">
+            <span className="bmf-label">Travel date</span>
+            <input
+              type="date"
+              value={date}
+              min={window0.first}
+              max={window0.last}
+              onChange={(e) => e.target.value && setDate(e.target.value)}
+              className="bmf-field [color-scheme:dark]"
+            />
+            <span className="block mt-2 text-xs text-white/45">
+              Leaves daily at {clockLabel(deals[0])}. On sale for {shortDay(window0.first)} to {shortDay(window0.last)}.
+            </span>
+          </label>
 
-          <div className="space-y-3">
-            <label className="block">
-              <span className="bmf-label">Passenger name</span>
-              <input id="name" type="text" placeholder="As on your ID" value={passengerName} onChange={(e) => setPassengerName(e.target.value)} className="bmf-field" autoComplete="name" />
-            </label>
-            <label className="block">
-              <span className="bmf-label">Phone number</span>
+          <fieldset className="space-y-3">
+            <legend className="bmf-label">Passengers, as on their ID</legend>
+            {names.map((n, i) => (
               <input
-                id="phone"
-                type="tel"
-                placeholder="+919876543210"
-                value={phoneNumber}
-                onChange={(e) => {
-                  setPhoneNumber(e.target.value);
-                  setPhoneError(null);
-                }}
+                key={i}
+                type="text"
+                value={n}
+                onChange={(e) => setNames((prev) => prev.map((x, j) => (j === i ? e.target.value : x)))}
+                placeholder={i < adults ? `Adult ${i + 1} full name` : `Child ${i - adults + 1} full name`}
                 className="bmf-field"
-                autoComplete="tel"
+                autoComplete={i === 0 ? 'name' : 'off'}
+                aria-label={i < adults ? `Adult ${i + 1} name` : `Child ${i - adults + 1} name`}
               />
-              {phoneError && <span className="block text-xs text-destructive mt-2">{phoneError}</span>}
-            </label>
-          </div>
+            ))}
+          </fieldset>
+
+          {isLoggedIn ? (
+            holdEndsAt ? (
+              <p className="rounded-xl border border-[#ffb45e]/40 bg-[#ffb45e]/10 p-3 text-sm text-[#ffd29b]" role="status">
+                Seats held for you for <b className="tabular-nums">{holdLabel}</b>. Other travellers see them as on hold.
+              </p>
+            ) : (
+              <p className="text-xs text-white/45">Seats you pick are held for 10 minutes while you check out.</p>
+            )
+          ) : (
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm text-white/70">
+              Sign in to hold your seats for 10 minutes and pay.{' '}
+              <button type="button" className="underline text-[#ffd29b]" onClick={() => window.dispatchEvent(new Event('bmf:open-login'))}>
+                Sign in
+              </button>
+            </div>
+          )}
+
+          {notice && (
+            <p className="rounded-xl border border-[#ffb45e]/40 bg-[#ffb45e]/10 p-3 text-sm text-[#ffd29b]" role="alert">{notice}</p>
+          )}
 
           <dl className="space-y-2.5 text-sm border-t border-white/10 pt-5">
             <div className="flex justify-between gap-4">
-              <dt className="text-white/55">Economy fare</dt>
-              <dd className="tabular-nums">₹{unitPrice.toLocaleString('en-IN')} <span className="text-white/45">per seat</span></dd>
+              <dt className="text-white/55">Fares, {passengerCount} passenger{passengerCount > 1 ? 's' : ''}{deals.length > 1 ? ', 2 flights' : ''}</dt>
+              <dd className="tabular-nums">{inr(fares)}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-white/55">Seats</dt>
-              <dd className="text-right">{selectedSeats.length ? `${selectedSeats.join(', ')}` : <span className="text-white/45">Pick in the cabin</span>}</dd>
+              <dt className="text-white/55">Seat selection</dt>
+              <dd className="tabular-nums">{fees ? inr(fees) : 'Free'}</dd>
             </div>
-            {seatClassSummary && (
-              <div className="flex justify-between gap-4">
-                <dt className="text-white/55">Cabin</dt>
-                <dd className="text-right">{seatClassSummary}</dd>
-              </div>
-            )}
-            {deal.discount ? (
-              <div className="flex justify-between gap-4">
-                <dt className="text-white/55">You save</dt>
-                <dd className="text-[#ffb45e] tabular-nums">
-                  {deal.discount}% <s className="ml-2 text-white/40">₹{totalOriginalPrice.toLocaleString('en-IN')}</s>
+            {deals.map((d, i) => (
+              <div key={d.id} className="flex justify-between gap-4 text-xs">
+                <dt className="text-white/45">{deals.length > 1 ? `${d.departureCity} → ${d.arrivalCity}` : 'Seats'}</dt>
+                <dd className="text-right text-white/70">
+                  {(selections[i] ?? []).length ? (selections[i] ?? []).map((s) => `${s} (${cabinClassOf(s)?.name})`).join(', ') : 'Not picked'}
                 </dd>
               </div>
-            ) : null}
+            ))}
+            {originalTotal > total + 1 && (
+              <div className="flex justify-between gap-4">
+                <dt className="text-white/55">You save</dt>
+                <dd className="text-[#ffb45e] tabular-nums">{inr(originalTotal - total)}</dd>
+              </div>
+            )}
             <div className="flex justify-between items-baseline gap-4 pt-3 border-t border-white/10">
-              <dt className="text-white/70">Total, {passengerCount} passenger{passengerCount > 1 ? 's' : ''}</dt>
-              <dd className="text-3xl font-bold tracking-[-0.04em] tabular-nums text-[#ffd29b]">₹{totalPrice.toLocaleString('en-IN')}</dd>
+              <dt className="text-white/70">Total</dt>
+              <dd className="text-3xl font-bold tracking-[-0.04em] tabular-nums text-[#ffd29b]">{inr(total)}</dd>
             </div>
+            <p className="text-[11px] text-white/40">All-in fare, nothing added at payment. Business seats include seat choice.</p>
             {isLoggedIn && (
               <div className="flex justify-between gap-4 text-xs">
                 <dt className="text-white/45">Wallet balance</dt>
-                <dd className="tabular-nums text-white/70">₹{walletBalance.toLocaleString('en-IN')}</dd>
+                <dd className="tabular-nums text-white/70">{inr(walletBalance)}</dd>
               </div>
             )}
           </dl>
@@ -337,117 +445,53 @@ export default function BookingPage() {
           )}
 
           <div>
-            <button type="button" onClick={handleBooking} disabled={bookingLoading || !phoneNumber} className="bmf-cta w-full">
-              {bookingLoading ? 'Booking…' : selectedSeats.length === passengerCount ? `Book ${selectedSeats.length > 1 ? 'seats' : 'seat'} ${selectedSeats.join(', ')}` : 'Confirm and book'}
+            <button type="button" onClick={handleBooking} disabled={bookingLoading || connectionBroken} className="bmf-cta w-full">
+              {bookingLoading ? 'Booking…' : !isLoggedIn ? 'Sign in to book' : allPicked && namesOk ? `Pay ${inr(total)} and book` : 'Confirm and book'}
             </button>
-            <p className="text-xs text-white/40 text-center mt-3">Paid from your wallet. By booking you agree to the fare rules.</p>
+            <p className="text-xs text-white/40 text-center mt-3">Paid from your wallet. Full refund up to 10 days before departure.</p>
           </div>
         </div>
       </CabinSeatMap>
 
-      {/* Receipt Dialog */}
-      <Dialog open={showReceipt} onOpenChange={setShowReceipt}>
+      <Dialog open={!!booked} onOpenChange={(o) => { if (!o) setBooked(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <div className="flex justify-center mb-2">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-green-100 animate-scale-in">
-                <svg className="w-7 h-7 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-              </div>
-            </div>
-            <DialogTitle className="text-center text-xl">Booking Confirmed!</DialogTitle>
-            <DialogDescription className="text-center">
-              Your flight has been successfully booked.
-            </DialogDescription>
+            <DialogTitle className="text-2xl tracking-[-0.03em]">You’re booked</DialogTitle>
+            <DialogDescription>Your seats are confirmed. Have a good flight.</DialogDescription>
           </DialogHeader>
-
-          <div className="space-y-4 mt-2">
-            <div className="border rounded-lg p-4 bg-muted/30 space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Booking ID</span>
-                <span className="font-mono font-semibold text-foreground">{booking?.id?.slice(0, 8).toUpperCase()}</span>
+          {booked && (
+            <div className="space-y-4 mt-2">
+              {booked.map((b) => (
+                <div key={b.id} className="rounded-xl border border-white/10 p-4 space-y-1.5 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <span className="font-semibold">{b.departureCity} → {b.arrivalCity}</span>
+                    <span className="font-mono text-xs text-white/60">{b.id.slice(0, 8).toUpperCase()}</span>
+                  </div>
+                  {b.selectedDepartureTime && <p className="text-white/65">{longDate(b.selectedDepartureTime)}</p>}
+                  <p className="text-white/65">Seats {b.selectedSeats?.join(', ')}</p>
+                  <p className="text-[#ffd29b] font-semibold tabular-nums">{inr(b.cost ?? 0)}</p>
+                </div>
+              ))}
+              <div className="flex justify-between gap-4 text-sm">
+                <span className="text-white/60">Passengers</span>
+                <span className="text-right">{names.join(', ')}</span>
               </div>
-              <div className="border-t" />
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Route</span>
-                <span className="font-semibold text-foreground">{deal.departureCity} → {deal.arrivalCity}</span>
-              </div>
-              {passengerName && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Passenger</span>
-                  <span className="font-semibold text-foreground">{passengerName}</span>
+              {booked[booked.length - 1]?.walletBalance != null && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/60">Wallet balance</span>
+                  <span className="tabular-nums">{inr(booked[booked.length - 1].walletBalance ?? 0)}</span>
                 </div>
               )}
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Phone</span>
-                <span className="font-semibold text-foreground">{phoneNumber}</span>
-              </div>
-              {departureDate && departureTime && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Departure</span>
-                  <span className="font-semibold text-foreground">
-                    {new Date(`${departureDate}T${departureTime}`).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-              )}
-              {arrivalTime && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Est. Arrival</span>
-                  <span className="font-semibold text-accent">
-                    {arrivalTime.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-              )}
-              {deal.durationMinutes && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Duration</span>
-                  <span className="font-semibold text-foreground">{formatDuration(deal.durationMinutes)}</span>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Passengers</span>
-                <span className="font-semibold text-foreground">Adults {adults}, Children {children}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Seats</span>
-                <span className="font-semibold text-foreground">{selectedSeats.join(', ') || '-'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Amount Paid</span>
-                <span className="font-bold text-primary text-base">₹{(booking?.cost ?? totalPrice).toLocaleString('en-IN')}</span>
-              </div>
-              {booking?.walletBalance != null && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Wallet Balance</span>
-                  <span className="font-bold text-foreground">₹{booking.walletBalance.toLocaleString('en-IN')}</span>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Status</span>
-                <span className="inline-flex items-center gap-1 text-green-600 font-semibold">
-                  <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
-                  Confirmed
-                </span>
+              <div className="flex flex-col gap-2">
+                <Button onClick={() => router.push('/my-bookings')} className="w-full h-11 rounded-full font-semibold">
+                  View my trips
+                </Button>
+                <Button onClick={() => setBooked(null)} variant="outline" className="w-full h-11 rounded-full">
+                  Close
+                </Button>
               </div>
             </div>
-
-            <div className="flex flex-col gap-2">
-              <Button
-                onClick={() => router.push('/')}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
-              >
-                Browse More Flights
-              </Button>
-              <Button
-                onClick={() => setShowReceipt(false)}
-                variant="outline"
-                className="w-full"
-              >
-                Close
-              </Button>
-            </div>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
     </main>

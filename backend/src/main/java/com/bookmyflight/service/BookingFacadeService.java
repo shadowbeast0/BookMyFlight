@@ -68,6 +68,9 @@ public class BookingFacadeService {
     @org.springframework.beans.factory.annotation.Autowired
     private com.bookmyflight.config.AdminProperties adminProperties;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private SeatHoldService seatHoldService;
+
     public boolean isOtpDemoMode() {
         return otpService.isDemoMode();
     }
@@ -118,11 +121,16 @@ public class BookingFacadeService {
             throw new RuntimeException("This deal has expired");
         }
 
+        if (selectedDepartureTime != null && !FlightSchedule.isScheduledSlot(deal, selectedDepartureTime, LocalDateTime.now())) {
+            throw new RuntimeException(deal.getDepartureCity() + " to " + deal.getArrivalCity() + " does not fly at that time. Pick one of the scheduled dates.");
+        }
+
         // 2. Validate and lock seats for this deal/departure slot.
         List<String> normalizedSeats = normalizeSeats(selectedSeats);
         if (!normalizedSeats.isEmpty()) {
             LocalDateTime departureSlot = selectedDepartureTime != null ? selectedDepartureTime : deal.getDepartureDate();
-            Set<String> alreadyBookedSeats = getBookedSeatsForSlot(dealId, departureSlot, deal.getDepartureDate());
+            Set<String> alreadyBookedSeats = new java.util.HashSet<>(getBookedSeatsForSlot(dealId, departureSlot, deal.getDepartureDate()));
+            alreadyBookedSeats.addAll(seatHoldService.heldByOthers(dealId, departureSlot, phoneNumber));
 
             List<String> conflicts = normalizedSeats.stream()
                     .filter(alreadyBookedSeats::contains)
@@ -134,12 +142,16 @@ public class BookingFacadeService {
         }
 
         int passengerCount = resolvePassengerCount(requestedPassengerCount, passengerName, normalizedSeats);
+        long exitSeats = normalizedSeats.stream().filter(CabinLayout::isExitRow).count();
+        if (exitSeats > adultsIn(passengerName, passengerCount)) {
+            throw new RuntimeException("Exit-row seats can only go to adults");
+        }
         double unitCost = calculateCurrentUnitCost(deal);
         double totalCost;
         try {
             totalCost = normalizedSeats.isEmpty()
                     ? roundCurrency(unitCost * passengerCount)
-                    : roundCurrency(normalizedSeats.stream().mapToDouble(seat -> unitCost * CabinLayout.multiplierFor(seat)).sum());
+                    : roundCurrency(normalizedSeats.stream().mapToDouble(seat -> CabinLayout.priceFor(unitCost, seat)).sum());
         } catch (IllegalArgumentException e) {
             throw new RuntimeException(e.getMessage());
         }
@@ -159,9 +171,102 @@ public class BookingFacadeService {
                 .build();
 
         booking = bookingRepository.save(booking);
+        seatHoldService.release(dealId, selectedDepartureTime != null ? selectedDepartureTime : deal.getDepartureDate(), phoneNumber);
         BookingResponse response = toBookingResponse(booking);
         response.setWalletBalance(wallet.getBalance());
         return response;
+    }
+
+    @Transactional
+    public List<BookingResponse> createItinerary(com.bookmyflight.dto.ItineraryRequest request, String phoneNumber) {
+        List<com.bookmyflight.dto.ItineraryRequest.Leg> legs = request.getLegs();
+        if (legs.size() == 2) {
+            FlightDeal first = dealRepository.findById(legs.get(0).getDealId())
+                    .orElseThrow(() -> new RuntimeException("Deal not found: " + legs.get(0).getDealId()));
+            FlightDeal second = dealRepository.findById(legs.get(1).getDealId())
+                    .orElseThrow(() -> new RuntimeException("Deal not found: " + legs.get(1).getDealId()));
+            LocalDateTime dep1 = legs.get(0).getSelectedDepartureTime();
+            LocalDateTime dep2 = legs.get(1).getSelectedDepartureTime();
+            if (dep1 == null || dep2 == null || first.getDurationMinutes() == null
+                    || !first.getArrivalCity().equalsIgnoreCase(second.getDepartureCity())
+                    || ChronoUnit.MINUTES.between(dep1.plusMinutes(first.getDurationMinutes()), dep2) < FlightSchedule.MIN_CONNECTION_MINUTES) {
+                throw new RuntimeException("These two flights do not connect");
+            }
+        }
+        List<BookingResponse> out = new ArrayList<>();
+        for (com.bookmyflight.dto.ItineraryRequest.Leg leg : legs) {
+            if (leg.getSelectedDepartureTime() == null) {
+                throw new RuntimeException("Choose a travel date");
+            }
+            out.add(createBooking(leg.getDealId(), phoneNumber, request.getPassengerName(), leg.getSelectedDepartureTime(), leg.getSelectedSeats(), request.getPassengerCount()));
+        }
+        return out;
+    }
+
+    public java.util.Map<String, Object> seatMap(String dealId, LocalDateTime slot, String owner) {
+        FlightDeal deal = dealRepository.findById(dealId)
+                .orElseThrow(() -> new RuntimeException("Deal not found: " + dealId));
+        LocalDateTime target = slot != null ? slot : deal.getDepartureDate();
+        SeatHoldService.Snapshot snap = seatHoldService.snapshot(dealId, target, owner);
+        java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("booked", getBookedSeatsForSlot(dealId, target, deal.getDepartureDate()).stream().sorted().collect(Collectors.toList()));
+        out.put("held", snap.held());
+        out.put("mine", snap.mine());
+        out.put("holdExpiresAt", snap.expiresAt() != null ? snap.expiresAt().toString() : null);
+        return out;
+    }
+
+    public java.util.Map<String, Object> holdSeats(String dealId, LocalDateTime slot, String owner, List<String> seats) {
+        FlightDeal deal = dealRepository.findById(dealId)
+                .orElseThrow(() -> new RuntimeException("Deal not found: " + dealId));
+        List<String> normalized = normalizeSeats(seats);
+        if (!normalized.isEmpty()) {
+            if (slot == null || !FlightSchedule.isScheduledSlot(deal, slot, LocalDateTime.now())) {
+                throw new RuntimeException("Choose one of the scheduled dates for this flight");
+            }
+            for (String seat : normalized) {
+                try {
+                    CabinLayout.priceFor(1, seat);
+                } catch (IllegalArgumentException e) {
+                    throw new RuntimeException(e.getMessage());
+                }
+            }
+        }
+        LocalDateTime target = slot != null ? slot : deal.getDepartureDate();
+        seatHoldService.replace(dealId, target, owner, normalized, getBookedSeatsForSlot(dealId, target, deal.getDepartureDate()));
+        return seatMap(dealId, target, owner);
+    }
+
+    public java.util.Map<String, java.util.Map<String, Object>> summary() {
+        java.util.Map<String, java.util.Map<String, Object>> out = new java.util.LinkedHashMap<>();
+        for (Booking b : bookingRepository.findAll()) {
+            java.util.Map<String, Object> row = out.computeIfAbsent(b.getDealId(), k -> {
+                java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+                m.put("bookings", 0);
+                m.put("seatsSold", 0);
+                m.put("revenue", 0.0);
+                m.put("cancelled", 0);
+                return m;
+            });
+            if ("cancelled".equals(b.getStatus())) {
+                row.put("cancelled", (Integer) row.get("cancelled") + 1);
+            } else {
+                row.put("bookings", (Integer) row.get("bookings") + 1);
+                row.put("seatsSold", (Integer) row.get("seatsSold") + parseSeats(b.getSelectedSeats(), b.getPassengerName()).size());
+                row.put("revenue", roundCurrency((Double) row.get("revenue") + (b.getPaidAmount() != null ? b.getPaidAmount() : 0.0)));
+            }
+        }
+        return out;
+    }
+
+    private long adultsIn(String passengerName, int passengerCount) {
+        if (passengerName != null) {
+            Matcher m = Pattern.compile("A(\\d+)-C(\\d+)", Pattern.CASE_INSENSITIVE).matcher(passengerName);
+            if (m.find()) {
+                return Long.parseLong(m.group(1));
+            }
+        }
+        return passengerCount;
     }
 
     /** Get a booking by ID. */
@@ -209,8 +314,11 @@ public class BookingFacadeService {
         FlightDeal deal = dealRepository.findById(booking.getDealId())
                 .orElseThrow(() -> new RuntimeException("Associated deal not found"));
 
-        // Calculate refund
-        long daysUntilDeparture = ChronoUnit.DAYS.between(LocalDateTime.now(), deal.getDepartureDate());
+        LocalDateTime flies = booking.getSelectedDepartureTime() != null ? booking.getSelectedDepartureTime() : deal.getDepartureDate();
+        if (flies.isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("This flight has already left");
+        }
+        long daysUntilDeparture = ChronoUnit.DAYS.between(LocalDateTime.now(), flies);
         double bookingTotalCost = getStoredOrComputedBookingTotal(deal, booking);
         double refundAmount;
         if (daysUntilDeparture > 10) {

@@ -82,8 +82,9 @@ public class DealController {
     @GetMapping("/search")
     public ResponseEntity<List<DealResponse>> searchDeals(
             @RequestParam("from") String from,
-            @RequestParam("to") String to) {
-        return ResponseEntity.ok(dealService.searchDeals(from, to));
+            @RequestParam("to") String to,
+            @RequestParam(value = "date", required = false) java.time.LocalDate date) {
+        return ResponseEntity.ok(dealService.searchDeals(from, to, date));
     }
 
     /**
@@ -92,8 +93,9 @@ public class DealController {
     @GetMapping("/connecting")
     public ResponseEntity<List<List<DealResponse>>> getConnectingFlights(
             @RequestParam("from") String from,
-            @RequestParam("to") String to) {
-        return ResponseEntity.ok(dealService.findConnectingFlights(from, to));
+            @RequestParam("to") String to,
+            @RequestParam(value = "date", required = false) java.time.LocalDate date) {
+        return ResponseEntity.ok(dealService.findConnectingFlights(from, to, date));
     }
 
     /**

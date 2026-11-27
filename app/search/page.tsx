@@ -19,22 +19,14 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [citiesLoading, setCitiesLoading] = useState(true);
 
-  useEffect(() => {
-    apiClient
-      .getCities()
-      .then((c) => setCities(c.sort()))
-      .catch(() => {})
-      .finally(() => setCitiesLoading(false));
-  }, []);
-
-  const handleSearch = async () => {
-    if (!from || !to) return;
+  const runSearch = async (src: string, dst: string) => {
+    if (!src || !dst) return;
     setLoading(true);
     setSearched(false);
     try {
       const [direct, connecting] = await Promise.all([
-        apiClient.searchFlights(from, to),
-        apiClient.getConnectingFlights(from, to),
+        apiClient.searchFlights(src, dst),
+        apiClient.getConnectingFlights(src, dst),
       ]);
       setDirectFlights(direct);
       setConnectingFlights(connecting);
@@ -47,6 +39,24 @@ export default function SearchPage() {
       setLoading(false);
     }
   };
+
+  const handleSearch = () => runSearch(from, to);
+
+  useEffect(() => {
+    apiClient
+      .getCities()
+      .then((c) => setCities(c.sort()))
+      .catch(() => {})
+      .finally(() => setCitiesLoading(false));
+    const params = new URLSearchParams(window.location.search);
+    const src = params.get('from') || '';
+    const dst = params.get('to') || '';
+    if (src && dst && src !== dst) {
+      setFrom(src);
+      setTo(dst);
+      runSearch(src, dst);
+    }
+  }, []);
 
   const getOriginalPrice = (deal: FlightDeal) =>
     deal.discount ? Math.round(deal.cost / (1 - deal.discount / 100)) : deal.cost;

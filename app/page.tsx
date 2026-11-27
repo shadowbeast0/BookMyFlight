@@ -7,11 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DealCountdown } from '@/components/DealCountdown';
 import { FlightDeal } from '@/lib/api';
-import { FlightMascot } from '@/components/FlightMascot';
 import { FlightPathJourney } from '@/components/FlightPathJourney';
-import { HeroRouteGlobe } from '@/components/HeroRouteGlobe';
+import { TakeoffHero } from '@/components/TakeoffHero';
 import { BoardingPassDealCard } from '@/components/BoardingPassDealCard';
-import { Plane } from 'lucide-react';
 
 export default function Home() {
   const { deals, loading, error, refetch } = useDeals();
@@ -20,7 +18,6 @@ export default function Home() {
   const [bookingDealId, setBookingDealId] = useState<string | null>(null);
   const [timeTheme, setTimeTheme] = useState<'morning' | 'day' | 'evening' | 'night'>('night');
   const [signalIndex, setSignalIndex] = useState(0);
-  const [launchSearch, setLaunchSearch] = useState(false);
 
   const handleSelectDeal = (dealId: string) => {
     router.push(`/booking?id=${dealId}`);
@@ -88,107 +85,9 @@ export default function Home() {
     }, 180);
   };
 
-  const handleHeroSearch = () => {
-    if (launchSearch) return;
-    setLaunchSearch(true);
-    window.setTimeout(() => {
-      router.push('/search');
-    }, 420);
-    window.setTimeout(() => setLaunchSearch(false), 900);
-  };
-
   return (
     <main className={`min-h-screen cyber-bg text-white time-theme-${timeTheme}`}>
-      {/* Hero Section */}
-      <section className="relative overflow-hidden py-20 md:py-28 cyber-grid">
-        <div className="hackathon-orb hackathon-orb-a" />
-        <div className="hackathon-orb hackathon-orb-b" />
-        <div className="hackathon-orb hackathon-orb-c" />
-
-        {/* Floating planes */}
-        <div className="absolute top-10 left-[10%] animate-float opacity-10">
-          <svg className="w-16 h-16 text-purple-300" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
-          </svg>
-        </div>
-        <div className="absolute bottom-16 right-[15%] animate-float-delayed opacity-10">
-          <svg className="w-12 h-12 text-white rotate-45" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
-          </svg>
-        </div>
-        <div className="absolute top-1/3 right-[5%] animate-pulse-glow w-64 h-64 bg-purple-500/15 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-[5%] animate-pulse-glow-delayed w-48 h-48 bg-violet-600/20 rounded-full blur-3xl" />
-
-        <div className="relative max-w-6xl mx-auto px-4 grid lg:grid-cols-[1.15fr_0.85fr] gap-8 items-center">
-          <div className="text-center lg:text-left">
-          <div className="flex justify-center mb-6 animate-fade-in-up">
-            <div className="rounded-2xl border border-purple-300/25 bg-purple-500/10 p-3 backdrop-blur-xl">
-              <FlightMascot size="lg" />
-            </div>
-          </div>
-          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 mb-8 animate-fade-in-up">
-            <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
-            <span className="text-sm font-medium text-white/80">Live: exclusive deals updated in real time</span>
-          </div>
-
-          <h1 className="display-font neon-title text-4xl md:text-6xl font-extrabold text-white mb-5 animate-fade-in-up animation-delay-100 leading-tight">
-            Book Smarter.
-            <br />
-            <span className="bg-gradient-to-r from-purple-300 via-white to-amber-200 bg-clip-text text-transparent animate-gradient-shift">
-              Fly Without Limits
-            </span>
-          </h1>
-          <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto mb-10 animate-fade-in-up animation-delay-200">
-            Grab exclusive limited-time flight deals before they expire.
-            Book in seconds with just your phone number.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up animation-delay-300">
-            <Button
-              onClick={handleHeroSearch}
-              className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-lg px-8 py-6 rounded-xl shadow-xl shadow-accent/20 hover-glow"
-            >
-              <span className={`takeoff-plane ${launchSearch ? 'launching' : ''}`}><Plane size={17} /></span>
-              Search Flights
-            </Button>
-            <Button
-              onClick={() => {
-                document.getElementById('flights')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              variant="outline"
-              className="border-white/30 text-white hover:bg-white/10 font-semibold text-lg px-8 py-6 rounded-xl"
-            >
-              View Flights ↓
-            </Button>
-          </div>
-
-          <div className="hero-search-panel mt-5 animate-fade-in-up animation-delay-200">
-            <p className="text-sm text-white/75">Interactive Globe Mode: select glowing city pins directly on the globe to set source and destination pairs.</p>
-            <p className="text-xs text-white/58 mt-1">Drag to rotate. Click one pin for source, next pin for destination, then repeat.</p>
-          </div>
-          </div>
-
-          <div className="hidden lg:block">
-            <HeroRouteGlobe />
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-8 max-w-lg mx-auto mt-16 animate-fade-in-up animation-delay-400">
-            <div className="glass-card mesh-panel rounded-xl p-4">
-              <p className="text-3xl font-extrabold text-white">{deals.length}+</p>
-              <p className="text-xs text-white/50 mt-1 uppercase tracking-wider">Routes</p>
-            </div>
-            <div className="glass-card mesh-panel rounded-xl p-4">
-              <p className="text-3xl font-extrabold text-white">{specialDeals.length}</p>
-              <p className="text-xs text-white/50 mt-1 uppercase tracking-wider">Special Deals</p>
-            </div>
-            <div className="glass-card mesh-panel rounded-xl p-4">
-              <p className="text-3xl font-extrabold text-white">30%</p>
-              <p className="text-xs text-white/50 mt-1 uppercase tracking-wider">Max Discount</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <TakeoffHero deals={deals} />
 
       <section className="hackathon-marquee-wrap" aria-label="Hackathon visual marquee">
         <div className="hackathon-marquee-track">

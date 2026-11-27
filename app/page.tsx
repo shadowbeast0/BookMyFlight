@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { DealCountdown } from '@/components/DealCountdown';
 import { FlightDeal } from '@/lib/api';
 import { FlightPathJourney } from '@/components/FlightPathJourney';
-import { TakeoffHero } from '@/components/TakeoffHero';
+import { FlightShowcase } from '@/components/FlightShowcase';
 import { BoardingPassDealCard } from '@/components/BoardingPassDealCard';
 
 export default function Home() {
@@ -87,7 +87,7 @@ export default function Home() {
 
   return (
     <main className={`min-h-screen cyber-bg text-white time-theme-${timeTheme}`}>
-      <TakeoffHero deals={deals} />
+      <FlightShowcase deals={deals} />
 
       <section className="hackathon-marquee-wrap" aria-label="Hackathon visual marquee">
         <div className="hackathon-marquee-track">

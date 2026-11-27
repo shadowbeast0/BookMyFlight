@@ -135,7 +135,14 @@ public class BookingFacadeService {
 
         int passengerCount = resolvePassengerCount(requestedPassengerCount, passengerName, normalizedSeats);
         double unitCost = calculateCurrentUnitCost(deal);
-        double totalCost = roundCurrency(unitCost * passengerCount);
+        double totalCost;
+        try {
+            totalCost = normalizedSeats.isEmpty()
+                    ? roundCurrency(unitCost * passengerCount)
+                    : roundCurrency(normalizedSeats.stream().mapToDouble(seat -> unitCost * CabinLayout.multiplierFor(seat)).sum());
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException(e.getMessage());
+        }
 
         // 3. Debit wallet before finalizing booking.
         Wallet wallet = walletService.debit(phoneNumber, totalCost);

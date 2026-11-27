@@ -24,11 +24,20 @@ const ACTS = [
   { from: 0.86, to: 1.01, rail: 'Takeoff', top: 'Wheels up.', bottom: 'Your move.', sub: 'Pick a route below or grab one of today’s best deals.' },
 ];
 
-const LABELS: Record<string, { title: string; body: string }> = {
-  engine: { title: 'Deals engine', body: 'Up to 30% off, live' },
-  seat: { title: 'Your seat', body: 'Locked while you pay' },
-  wing: { title: 'Wallet', body: 'Top up, pay in one tap' },
-  tail: { title: 'Refunds', body: 'Full refund 10+ days out' },
+const PARTS: Record<string, { name: string; note: string; side?: 'l' | 'r' }> = {
+  cockpit: { name: 'Cockpit', note: 'Two-crew glass flight deck' },
+  fuselage: { name: 'Fuselage', note: 'Pressurised composite barrel' },
+  engine: { name: 'Turbofan engine', note: 'High-bypass, most thrust from the fan' },
+  pylon: { name: 'Pylon', note: 'Hangs the engine under the wing', side: 'l' },
+  windows: { name: 'Cabin windows', note: 'Two per row, dimmable' },
+  door: { name: 'Passenger door', note: 'Plug-type, seals under pressure' },
+  wing: { name: 'Wing', note: 'Swept for cruise, carries the fuel' },
+  flaps: { name: 'Flaps', note: 'Extend for take-off and landing' },
+  winglet: { name: 'Winglet', note: 'Cuts drag from tip vortices' },
+  fin: { name: 'Vertical stabiliser', note: 'Keeps the nose tracking straight' },
+  rudder: { name: 'Rudder', note: 'Yaw control' },
+  stabiliser: { name: 'Horizontal stabiliser', note: 'Pitch trim, carries the elevators' },
+  mainGear: { name: 'Main landing gear', note: 'Folds into the wing root' },
 };
 
 const clamp = (v: number, a = 0, b = 1) => Math.min(b, Math.max(a, v));
@@ -67,7 +76,9 @@ export function FlightShowcase({ deals }: { deals: FlightDeal[] }) {
                 const el = hotRefs.current[h.id];
                 if (!el) continue;
                 el.style.transform = `translate3d(${h.x}px, ${h.y}px, 0)`;
-                el.dataset.on = h.on ? '1' : '0';
+                const crowded = window.innerWidth < 760 && h.y > window.innerHeight * 0.36;
+                el.dataset.on = h.on && !crowded ? '1' : '0';
+                el.dataset.side = PARTS[h.id]?.side ?? (h.x > window.innerWidth * 0.6 ? 'l' : 'r');
               }
             },
           });
@@ -157,12 +168,15 @@ export function FlightShowcase({ deals }: { deals: FlightDeal[] }) {
         {failed && <div className={styles.fallback} aria-hidden="true" />}
         <div className={styles.vignette} aria-hidden="true" />
 
-        {Object.entries(LABELS).map(([id, l]) => (
-          <div key={id} ref={(el) => { hotRefs.current[id] = el; }} className={styles.hot} data-on="0" aria-hidden="true">
+        {Object.entries(PARTS).map(([id, l]) => (
+          <div key={id} ref={(el) => { hotRefs.current[id] = el; }} className={styles.hot} data-on="0" data-side="r" aria-hidden="true">
             <span className={styles.dot} />
+            <svg className={styles.leader} viewBox="0 0 80 44" width="80" height="44">
+              <path d="M1 43 L34 3 L80 3" />
+            </svg>
             <span className={styles.tag}>
-              <b>{l.title}</b>
-              {l.body}
+              <b>{l.name}</b>
+              {l.note}
             </span>
           </div>
         ))}

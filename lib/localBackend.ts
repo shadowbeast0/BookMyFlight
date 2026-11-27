@@ -1,5 +1,7 @@
 'use client';
 
+import { isValidSeat, seatsTotal } from './cabin';
+
 type Deal = {
   id: string;
   departureCity: string;
@@ -281,11 +283,13 @@ export async function localRequest(method: string, endpoint: string, body: unkno
     if (new Date(deal.expiresAt).getTime() < Date.now()) throw new LocalApiError('This deal has expired');
     const seats = [...new Set((input.selectedSeats ?? []).filter((s) => s?.trim()).map((s) => s.trim().toUpperCase()))];
     const taken = bookedSeats(db, deal, input.selectedDepartureTime);
+    const invalid = seats.filter((s) => !isValidSeat(s));
+    if (invalid.length) throw new LocalApiError(`Seat does not exist on this aircraft: ${invalid.join(', ')}`);
     const conflicts = seats.filter((s) => taken.has(s));
     if (conflicts.length) throw new LocalApiError(`Selected seat(s) already booked: ${conflicts.join(', ')}`);
     const count = input.passengerCount && input.passengerCount > 0 ? input.passengerCount : seats.length || 1;
     if (seats.length && seats.length !== count) throw new LocalApiError('Selected seats must match passenger count');
-    const total = round(price(deal) * count);
+    const total = seats.length ? seatsTotal(price(deal), seats) : round(price(deal) * count);
     const balance = db.wallets[phone] ?? 0;
     if (balance < total) throw new LocalApiError(`Insufficient wallet balance. Current: Rs ${balance.toFixed(2)}, Required: Rs ${total.toFixed(2)}`);
     db.wallets[phone] = round(balance - total);

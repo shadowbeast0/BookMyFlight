@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { DealCountdown } from '@/components/DealCountdown';
+import { CabinSeatMap } from '@/components/CabinSeatMap';
+import { ALL_SEATS, cabinClassOf, seatsTotal } from '@/lib/cabin';
 import { apiClient, FlightDeal, Booking } from '@/lib/api';
 import { useAuthContext } from '@/contexts/AuthContext';
 import {
@@ -88,9 +90,7 @@ export default function BookingPage() {
     return arr;
   }, [departureDate, departureTime, deal?.durationMinutes]);
 
-  const seatColumns = useMemo(() => ['A', 'B', 'C', 'D', 'E', 'F'], []);
-  const seatRowNumbers = useMemo(() => Array.from({ length: 10 }, (_, idx) => idx + 1), []);
-  const totalSeatCapacity = seatColumns.length * seatRowNumbers.length;
+  const totalSeatCapacity = ALL_SEATS.length;
 
   const occupiedSeats = useMemo(() => new Set(occupiedSeatIds), [occupiedSeatIds]);
 
@@ -121,6 +121,10 @@ export default function BookingPage() {
 
   const availableSeatCount = totalSeatCapacity - occupiedSeats.size;
   const passengerCount = adults + children;
+
+  useEffect(() => {
+    setSelectedSeats((prev) => (prev.length > passengerCount ? prev.slice(prev.length - passengerCount) : prev));
+  }, [passengerCount]);
 
   const handleBooking = async () => {
     setPhoneError(null);
@@ -206,8 +210,18 @@ export default function BookingPage() {
 
   const unitPrice = deal.cost;
   const originalPrice = deal.discount ? Math.round(deal.cost / (1 - deal.discount / 100)) : deal.cost;
-  const totalPrice = Math.round(unitPrice * passengerCount * 100) / 100;
-  const totalOriginalPrice = Math.round(originalPrice * passengerCount * 100) / 100;
+  const unseated = Math.max(0, passengerCount - selectedSeats.length);
+  const totalPrice = Math.round((seatsTotal(unitPrice, selectedSeats) + unitPrice * unseated) * 100) / 100;
+  const totalOriginalPrice = Math.round((seatsTotal(originalPrice, selectedSeats) + originalPrice * unseated) * 100) / 100;
+  const seatClassSummary = Object.entries(
+    selectedSeats.reduce<Record<string, number>>((acc, s) => {
+      const name = cabinClassOf(s)?.name ?? 'Economy';
+      acc[name] = (acc[name] ?? 0) + 1;
+      return acc;
+    }, {})
+  )
+    .map(([name, n]) => `${n}× ${name}`)
+    .join(', ');
 
   const toggleSeat = (seatId: string) => {
     if (occupiedSeats.has(seatId)) return;
@@ -217,7 +231,7 @@ export default function BookingPage() {
         return prev.filter((id) => id !== seatId);
       }
       if (prev.length >= passengerCount) {
-        return prev;
+        return [...prev.slice(1), seatId];
       }
       return [...prev, seatId];
     });
@@ -225,8 +239,20 @@ export default function BookingPage() {
 
   return (
     <main className="min-h-screen cyber-bg text-white">
-      <div className="max-w-3xl mx-auto px-4 py-12">
+      <div className="max-w-6xl mx-auto px-4 py-12">
         <h1 className="text-3xl font-bold text-white mb-8 animate-fade-in-up display-font neon-title">Complete Your Booking</h1>
+
+        <CabinSeatMap
+          unitPrice={unitPrice}
+          occupied={occupiedSeatIds}
+          selected={selectedSeats}
+          passengerCount={passengerCount}
+          adults={adults}
+          kids={children}
+          onAdults={setAdults}
+          onKids={setChildren}
+          onToggle={toggleSeat}
+        />
 
         <div className="grid gap-8 md:grid-cols-2">
           {/* Deal Details */}
@@ -255,7 +281,7 @@ export default function BookingPage() {
 
             <div className="border-t pt-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Price / Passenger</span>
+                <span className="text-muted-foreground">Economy fare / Passenger</span>
                 <span className="text-2xl font-bold text-primary">₹{unitPrice.toLocaleString('en-IN')}</span>
               </div>
               {deal.discount ? (
@@ -276,6 +302,12 @@ export default function BookingPage() {
                   <span className="text-sm font-semibold text-foreground">{formatDuration(deal.durationMinutes)}</span>
                 </div>
               )}
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Seats</span>
+                <span className="text-sm font-semibold text-foreground text-right">
+                  {selectedSeats.length ? `${selectedSeats.join(', ')} (${seatClassSummary})` : 'Pick in the cabin above'}
+                </span>
+              </div>
               <div className="flex items-center justify-between border-t pt-2 mt-2">
                 <span className="text-muted-foreground">Total ({passengerCount} Passenger{passengerCount > 1 ? 's' : ''})</span>
                 <div className="text-right">
@@ -384,109 +416,6 @@ export default function BookingPage() {
                       onChange={(e) => setDepartureTime(e.target.value)}
                       className="w-full"
                     />
-                  </div>
-                </div>
-
-                <div className="rounded-lg border border-border bg-secondary/10 p-3 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Adults</span>
-                    <div className="flex items-center gap-2">
-                      <Button type="button" variant="outline" size="sm" onClick={() => setAdults((v) => Math.max(1, v - 1))}>-</Button>
-                      <span className="w-6 text-center font-semibold">{adults}</span>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setAdults((v) => Math.min(9, v + 1))}>+</Button>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Children</span>
-                    <div className="flex items-center gap-2">
-                      <Button type="button" variant="outline" size="sm" onClick={() => setChildren((v) => Math.max(0, v - 1))}>-</Button>
-                      <span className="w-6 text-center font-semibold">{children}</span>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setChildren((v) => Math.min(9, v + 1))}>+</Button>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Available seats: {availableSeatCount} / {totalSeatCapacity}</p>
-                </div>
-
-                <div className="rounded-lg border border-border bg-secondary/10 p-3">
-                  <p className="text-sm font-medium text-foreground mb-2">Select Seats ({selectedSeats.length}/{passengerCount})</p>
-                  <div className="mx-auto max-w-xl rounded-xl border border-border/70 bg-background/60 p-3">
-                    <div className="mx-auto mb-3 h-8 w-40 rounded-b-2xl border border-border/70 bg-secondary/30 text-center text-[11px] font-semibold uppercase tracking-widest text-muted-foreground leading-8">
-                      Cockpit
-                    </div>
-                    <div className="mb-2 grid grid-cols-[28px_1fr_22px_1fr] items-center gap-2 text-[10px] font-semibold tracking-widest text-muted-foreground">
-                      <span />
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <span>A</span>
-                        <span>B</span>
-                        <span>C</span>
-                      </div>
-                      <span className="text-center">|</span>
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <span>D</span>
-                        <span>E</span>
-                        <span>F</span>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      {seatRowNumbers.map((row) => (
-                        <div key={row} className="grid grid-cols-[28px_1fr_22px_1fr] items-center gap-2">
-                          <span className="text-xs font-semibold text-muted-foreground text-center">{row}</span>
-                          <div className="grid grid-cols-3 gap-2">
-                            {seatColumns.slice(0, 3).map((col) => {
-                              const seatId = `${row}${col}`;
-                              const occupied = occupiedSeats.has(seatId);
-                              const selected = selectedSeats.includes(seatId);
-                              return (
-                                <button
-                                  key={seatId}
-                                  type="button"
-                                  disabled={occupied}
-                                  onClick={() => toggleSeat(seatId)}
-                                  className={`h-9 rounded-md text-xs font-semibold border transition-colors ${
-                                    occupied
-                                      ? 'bg-muted/60 text-muted-foreground border-border cursor-not-allowed'
-                                      : selected
-                                      ? 'bg-primary text-primary-foreground border-primary'
-                                      : 'bg-background text-foreground border-border hover:bg-primary/10'
-                                  }`}
-                                >
-                                  {seatId}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          <span className="text-[10px] text-muted-foreground text-center">Aisle</span>
-                          <div className="grid grid-cols-3 gap-2">
-                            {seatColumns.slice(3).map((col) => {
-                              const seatId = `${row}${col}`;
-                              const occupied = occupiedSeats.has(seatId);
-                              const selected = selectedSeats.includes(seatId);
-                              return (
-                                <button
-                                  key={seatId}
-                                  type="button"
-                                  disabled={occupied}
-                                  onClick={() => toggleSeat(seatId)}
-                                  className={`h-9 rounded-md text-xs font-semibold border transition-colors ${
-                                    occupied
-                                      ? 'bg-muted/60 text-muted-foreground border-border cursor-not-allowed'
-                                      : selected
-                                      ? 'bg-primary text-primary-foreground border-primary'
-                                      : 'bg-background text-foreground border-border hover:bg-primary/10'
-                                  }`}
-                                >
-                                  {seatId}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 text-[11px] text-muted-foreground mt-3">
-                    <span>Selected: {selectedSeats.join(', ') || '-'}</span>
-                    <span>Legend: filled = selected, gray = occupied</span>
                   </div>
                 </div>
 
